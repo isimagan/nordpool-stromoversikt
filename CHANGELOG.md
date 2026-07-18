@@ -2,7 +2,7 @@
 
 Alle vesentlige endringer i Nordpool strømoversikt dokumenteres i denne filen.
 
-## Ikke utgitt
+## 0.4.0 – 2026-07-19
 
 ### Lagt til
 
@@ -15,6 +15,7 @@ Alle vesentlige endringer i Nordpool strømoversikt dokumenteres i denne filen.
 - `stopptid` på prissensorene er nå starten på neste hele time, med sekunder
   satt til `00`.
 - Sensorvalget vises bare når flere Nord Pool-sensorer finnes.
+- Integrasjonsversjonen er oppdatert til `0.4.0`.
 
 ### Fjernet
 
