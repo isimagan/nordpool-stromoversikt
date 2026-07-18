@@ -5,9 +5,9 @@
   "codeowners": ["@isimagan"],
   "config_flow": true,
   "documentation": "https://github.com/isimagan/nordpool-stromoversikt",
-  "integration_type": "helper",
+  "integration_type": "service",
   "iot_class": "calculated",
   "issue_tracker": "https://github.com/isimagan/nordpool-stromoversikt/issues",
   "requirements": [],
-  "version": "0.2.0"
+  "version": "0.3.0"
 }
