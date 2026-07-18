@@ -2,14 +2,22 @@
 
 from __future__ import annotations
 
+from datetime import datetime, timedelta
 from typing import Any
 
-from homeassistant.components.sensor import SensorEntity
+from homeassistant.components.sensor import SensorEntity, SensorStateClass
 from homeassistant.config_entries import ConfigEntry
-from homeassistant.const import ATTR_UNIT_OF_MEASUREMENT, STATE_UNAVAILABLE, STATE_UNKNOWN
+from homeassistant.const import (
+    ATTR_UNIT_OF_MEASUREMENT,
+    STATE_UNAVAILABLE,
+    STATE_UNKNOWN,
+)
 from homeassistant.core import Event, EventStateChangedData, HomeAssistant, callback
+from homeassistant.helpers import device_registry as dr, entity_registry as er
+from homeassistant.helpers.device_registry import DeviceInfo
 from homeassistant.helpers.entity_platform import AddConfigEntryEntitiesCallback
 from homeassistant.helpers.event import async_track_state_change_event
+from homeassistant.util import dt as dt_util
 
 from .const import CONF_NORDPOOL_SENSOR
 
@@ -21,29 +29,38 @@ async def async_setup_entry(
 ) -> None:
     """Opprett strømoversikten."""
     async_add_entities(
-        [NordpoolStromoversiktSensor(hass, entry)],
+        [
+            NordpoolStromoversiktSensor(hass, entry),
+            BilligstTimeSensor(hass, entry),
+        ],
         update_before_add=True,
     )
 
 
-class NordpoolStromoversiktSensor(SensorEntity):
-    """Vis valgt Nord Pool-sensor som en norsk strømoversikt."""
-
-    _attr_has_entity_name = True
-    _attr_name = "Strømoversikt"
-    _attr_icon = "mdi:lightning-bolt"
+class NordpoolKildesensor(SensorEntity):
+    """Felles grunnlag for sensorer som bruker valgt Nord Pool-sensor."""
 
     def __init__(self, hass: HomeAssistant, entry: ConfigEntry) -> None:
-        """Opprett sensoren."""
+        """Knytt sensoren til valgt Nord Pool-sensor og dens enhet."""
         self.hass = hass
         self._entry = entry
         self._source_entity_id = entry.data[CONF_NORDPOOL_SENSOR]
-        self._attr_unique_id = entry.entry_id
-        self._attr_native_value: Any = None
-        self._attr_available = False
-        self._attr_extra_state_attributes = {
-            "valgt_nordpool_sensor": self._source_entity_id
-        }
+        self._attr_device_info = self._finn_nordpool_enhet()
+
+    def _finn_nordpool_enhet(self) -> DeviceInfo | None:
+        """Returner Nord Pool-enheten slik at sensoren vises på informasjonssiden."""
+        kilde = er.async_get(self.hass).async_get(self._source_entity_id)
+        if kilde is None or kilde.device_id is None:
+            return None
+
+        enhet = dr.async_get(self.hass).async_get(kilde.device_id)
+        if enhet is None:
+            return None
+
+        return DeviceInfo(
+            identifiers=enhet.identifiers,
+            connections=enhet.connections,
+        )
 
     async def async_added_to_hass(self) -> None:
         """Følg endringer fra valgt Nord Pool-sensor."""
@@ -71,6 +88,29 @@ class NordpoolStromoversiktSensor(SensorEntity):
 
     @callback
     def _oppdater_fra_kildesensor(self) -> None:
+        """Oppdater sensoren fra valgt Nord Pool-sensor."""
+        raise NotImplementedError
+
+
+class NordpoolStromoversiktSensor(NordpoolKildesensor):
+    """Vis valgt Nord Pool-sensor som en norsk strømoversikt."""
+
+    _attr_has_entity_name = True
+    _attr_name = "Strømoversikt"
+    _attr_icon = "mdi:lightning-bolt"
+
+    def __init__(self, hass: HomeAssistant, entry: ConfigEntry) -> None:
+        """Opprett sensoren."""
+        super().__init__(hass, entry)
+        self._attr_unique_id = entry.entry_id
+        self._attr_native_value: Any = None
+        self._attr_available = False
+        self._attr_extra_state_attributes = {
+            "valgt_nordpool_sensor": self._source_entity_id
+        }
+
+    @callback
+    def _oppdater_fra_kildesensor(self) -> None:
         """Kopier verdi og informasjon fra valgt sensor."""
         state = self.hass.states.get(self._source_entity_id)
 
@@ -93,3 +133,127 @@ class NordpoolStromoversiktSensor(SensorEntity):
             **state.attributes,
         }
 
+
+class BilligstTimeSensor(NordpoolKildesensor):
+    """Vis dagens billigste hele strømtime."""
+
+    _attr_has_entity_name = True
+    _attr_name = "Billigst time"
+    _attr_icon = "mdi:cash-clock"
+    _attr_state_class = SensorStateClass.MEASUREMENT
+
+    def __init__(self, hass: HomeAssistant, entry: ConfigEntry) -> None:
+        """Opprett sensoren for billigste time."""
+        super().__init__(hass, entry)
+        self._attr_unique_id = f"{entry.entry_id}-billigst-time"
+        self._attr_native_value: float | None = None
+        self._attr_available = False
+        self._attr_extra_state_attributes = {
+            "starttid": None,
+            "stopptid": None,
+        }
+
+    @callback
+    def _oppdater_fra_kildesensor(self) -> None:
+        """Finn dagens billigste hele time fra raw_today eller today."""
+        state = self.hass.states.get(self._source_entity_id)
+        if state is None:
+            self._sett_utilgjengelig()
+            return
+
+        billigste = self._billigste_fra_raw_today(state.attributes.get("raw_today"))
+        if billigste is None:
+            billigste = self._billigste_fra_today(state.attributes.get("today"))
+
+        if billigste is None:
+            self._sett_utilgjengelig()
+            return
+
+        pris, start, stopp = billigste
+        self._attr_available = True
+        self._attr_native_value = pris
+        self._attr_native_unit_of_measurement = state.attributes.get(
+            ATTR_UNIT_OF_MEASUREMENT
+        )
+        self._attr_extra_state_attributes = {
+            "starttid": start.isoformat(),
+            "stopptid": stopp.isoformat(),
+        }
+
+    @callback
+    def _sett_utilgjengelig(self) -> None:
+        """Tøm verdiene når Nord Pool ikke har gyldige dagspriser."""
+        self._attr_available = False
+        self._attr_native_value = None
+        self._attr_extra_state_attributes = {
+            "starttid": None,
+            "stopptid": None,
+        }
+
+    @staticmethod
+    def _billigste_fra_raw_today(
+        raw_today: Any,
+    ) -> tuple[float, datetime, datetime] | None:
+        """Finn billigste oppføring som dekker nøyaktig én hel time."""
+        if not isinstance(raw_today, list):
+            return None
+
+        hele_timer: list[tuple[float, datetime, datetime]] = []
+        for oppføring in raw_today:
+            if not isinstance(oppføring, dict):
+                continue
+
+            start = BilligstTimeSensor._som_datetime(oppføring.get("start"))
+            slutt = BilligstTimeSensor._som_datetime(oppføring.get("end"))
+            try:
+                pris = float(oppføring["value"])
+            except (KeyError, TypeError, ValueError):
+                continue
+
+            if (
+                start is None
+                or slutt is None
+                or slutt - start != timedelta(hours=1)
+                or start.minute != 0
+                or start.second != 0
+            ):
+                continue
+
+            hele_timer.append((pris, start, slutt - timedelta(seconds=1)))
+
+        if not hele_timer:
+            return None
+        return min(hele_timer, key=lambda time: (time[0], time[1]))
+
+    @staticmethod
+    def _billigste_fra_today(
+        today: Any,
+    ) -> tuple[float, datetime, datetime] | None:
+        """Finn billigste time i en liste med 24 dagspriser."""
+        if not isinstance(today, list) or len(today) != 24:
+            return None
+
+        priser: list[tuple[float, int]] = []
+        for time, verdi in enumerate(today):
+            try:
+                priser.append((float(verdi), time))
+            except (TypeError, ValueError):
+                continue
+
+        if not priser:
+            return None
+
+        pris, time = min(priser, key=lambda verdi: (verdi[0], verdi[1]))
+        nå = dt_util.now()
+        start = nå.replace(hour=time, minute=0, second=0, microsecond=0)
+        stopp = start + timedelta(hours=1) - timedelta(seconds=1)
+        return pris, start, stopp
+
+    @staticmethod
+    def _som_datetime(verdi: Any) -> datetime | None:
+        """Gjør om en datetime eller ISO-tekst til datetime."""
+        if isinstance(verdi, datetime):
+            return verdi
+        if isinstance(verdi, str):
+            return dt_util.parse_datetime(verdi)
+        return None
