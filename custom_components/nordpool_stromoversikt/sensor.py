@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from datetime import datetime, timedelta
+import math
 from typing import Any
 
 from homeassistant.components.sensor import SensorEntity, SensorStateClass
@@ -194,11 +195,11 @@ class BilligstTimeSensor(NordpoolKildesensor):
     def _billigste_fra_raw_today(
         raw_today: Any,
     ) -> tuple[float, datetime, datetime] | None:
-        """Finn billigste oppføring som dekker nøyaktig én hel time."""
+        """Finn billigste klokktime fra time- eller kvarterspriser."""
         if not isinstance(raw_today, list):
             return None
 
-        hele_timer: list[tuple[float, datetime, datetime]] = []
+        perioder: list[tuple[datetime, datetime, float]] = []
         for oppføring in raw_today:
             if not isinstance(oppføring, dict):
                 continue
@@ -210,16 +211,58 @@ class BilligstTimeSensor(NordpoolKildesensor):
             except (KeyError, TypeError, ValueError):
                 continue
 
-            if (
-                start is None
-                or slutt is None
-                or slutt - start != timedelta(hours=1)
-                or start.minute != 0
-                or start.second != 0
-            ):
+            if start is None or slutt is None or slutt <= start:
+                continue
+            if not math.isfinite(pris):
                 continue
 
-            hele_timer.append((pris, start, slutt - timedelta(seconds=1)))
+            perioder.append((start, slutt, pris))
+
+        if not perioder:
+            return None
+
+        kandidater = {
+            start.replace(minute=0, second=0, microsecond=0)
+            for start, _slutt, _pris in perioder
+        }
+        hele_timer: list[tuple[float, datetime, datetime]] = []
+
+        for timestart in sorted(kandidater):
+            timeslutt = timestart + timedelta(hours=1)
+            deler: list[tuple[datetime, datetime, float]] = []
+
+            for start, slutt, pris in perioder:
+                delstart = max(start, timestart)
+                delslutt = min(slutt, timeslutt)
+                if delstart < delslutt:
+                    deler.append((delstart, delslutt, pris))
+
+            deler.sort(key=lambda delperiode: delperiode[0])
+            neste_tid = timestart
+            pris_ganger_sekunder = 0.0
+
+            for delstart, delslutt, pris in deler:
+                if delstart > neste_tid:
+                    break
+
+                gyldig_start = max(delstart, neste_tid)
+                if delslutt <= gyldig_start:
+                    continue
+
+                sekunder = (delslutt - gyldig_start).total_seconds()
+                pris_ganger_sekunder += pris * sekunder
+                neste_tid = delslutt
+
+                if neste_tid >= timeslutt:
+                    break
+
+            if neste_tid < timeslutt:
+                continue
+
+            timepris = pris_ganger_sekunder / timedelta(hours=1).total_seconds()
+            hele_timer.append(
+                (timepris, timestart, timeslutt - timedelta(seconds=1))
+            )
 
         if not hele_timer:
             return None
@@ -229,16 +272,32 @@ class BilligstTimeSensor(NordpoolKildesensor):
     def _billigste_fra_today(
         today: Any,
     ) -> tuple[float, datetime, datetime] | None:
-        """Finn billigste time i en liste med 24 dagspriser."""
-        if not isinstance(today, list) or len(today) != 24:
+        """Finn billigste time i en liste med time- eller kvarterspriser."""
+        if (
+            not isinstance(today, list)
+            or len(today) < 24
+            or len(today) % 24 != 0
+        ):
             return None
 
+        verdier_per_time = len(today) // 24
         priser: list[tuple[float, int]] = []
-        for time, verdi in enumerate(today):
+        for time in range(24):
+            timeverdier = today[
+                time * verdier_per_time : (time + 1) * verdier_per_time
+            ]
             try:
-                priser.append((float(verdi), time))
+                gyldige_verdier = [float(verdi) for verdi in timeverdier]
             except (TypeError, ValueError):
                 continue
+
+            if (
+                len(gyldige_verdier) != verdier_per_time
+                or not all(math.isfinite(verdi) for verdi in gyldige_verdier)
+            ):
+                continue
+
+            priser.append((sum(gyldige_verdier) / verdier_per_time, time))
 
         if not priser:
             return None
