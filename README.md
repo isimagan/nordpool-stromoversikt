@@ -40,6 +40,10 @@ Sensoren **Billigst time** viser prisen for dagens billigste hele strømtime.
 Den leser først attributtet `raw_today` og bruker `today` som reserve dersom
 `raw_today` ikke finnes.
 
+Hvis Nord Pool leverer priser hvert 15. minutt, samler sensoren de fire
+kvartersprisene som dekker en hel klokktime og beregner et tidsvektet
+gjennomsnitt. Den fungerer også når Nord Pool leverer én pris per time.
+
 Sensoren har to attributter:
 
 - `starttid`: tidspunktet den billigste timen starter
