@@ -1,0 +1,14 @@
+{
+  "domain": "nordpool_stromoversikt",
+  "name": "Nordpool strømoversikt",
+  "after_dependencies": ["nordpool"],
+  "codeowners": ["@isimagan"],
+  "config_flow": true,
+  "documentation": "https://github.com/isimagan/nordpool-stromoversikt",
+  "integration_type": "helper",
+  "iot_class": "calculated",
+  "issue_tracker": "https://github.com/isimagan/nordpool-stromoversikt/issues",
+  "requirements": [],
+  "version": "0.1.0"
+}
+
