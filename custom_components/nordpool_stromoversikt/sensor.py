@@ -1,18 +1,10 @@
-"""Sensor for Nordpool strømoversikt."""
+"""Sensorer for Nordpool strømoversikt."""
 
 from __future__ import annotations
 
-from datetime import datetime, timedelta
-import math
-from typing import Any
-
 from homeassistant.components.sensor import SensorEntity, SensorStateClass
 from homeassistant.config_entries import ConfigEntry
-from homeassistant.const import (
-    ATTR_UNIT_OF_MEASUREMENT,
-    STATE_UNAVAILABLE,
-    STATE_UNKNOWN,
-)
+from homeassistant.const import ATTR_UNIT_OF_MEASUREMENT
 from homeassistant.core import Event, EventStateChangedData, HomeAssistant, callback
 from homeassistant.helpers import device_registry as dr, entity_registry as er
 from homeassistant.helpers.device_registry import DeviceInfo
@@ -20,7 +12,8 @@ from homeassistant.helpers.entity_platform import AddConfigEntryEntitiesCallback
 from homeassistant.helpers.event import async_track_state_change_event
 from homeassistant.util import dt as dt_util
 
-from .const import CONF_NORDPOOL_SENSOR
+from .const import CONF_NORDPOOL_SENSOR, DOMAIN
+from .price import hele_timer_fra_raw_today, hele_timer_fra_today, velg_time
 
 
 async def async_setup_entry(
@@ -28,11 +21,34 @@ async def async_setup_entry(
     entry: ConfigEntry,
     async_add_entities: AddConfigEntryEntitiesCallback,
 ) -> None:
-    """Opprett strømoversikten."""
+    """Opprett prissensorene."""
+    register = er.async_get(hass)
+    gammel_sensor = register.async_get_entity_id(
+        "sensor",
+        DOMAIN,
+        entry.entry_id,
+    )
+    if gammel_sensor is not None:
+        register.async_remove(gammel_sensor)
+
     async_add_entities(
         [
-            NordpoolStromoversiktSensor(hass, entry),
-            BilligstTimeSensor(hass, entry),
+            NordpoolTimeSensor(
+                hass,
+                entry,
+                navn="Billigst time",
+                unik_nøkkel="billigst-time",
+                ikon="mdi:cash-clock",
+                velg_høyeste=False,
+            ),
+            NordpoolTimeSensor(
+                hass,
+                entry,
+                navn="Dyreste time",
+                unik_nøkkel="dyreste-time",
+                ikon="mdi:chart-line",
+                velg_høyeste=True,
+            ),
         ],
         update_before_add=True,
     )
@@ -44,7 +60,6 @@ class NordpoolKildesensor(SensorEntity):
     def __init__(self, hass: HomeAssistant, entry: ConfigEntry) -> None:
         """Knytt sensoren til valgt Nord Pool-sensor og dens enhet."""
         self.hass = hass
-        self._entry = entry
         self._source_entity_id = entry.data[CONF_NORDPOOL_SENSOR]
         self._attr_device_info = self._finn_nordpool_enhet()
 
@@ -93,60 +108,28 @@ class NordpoolKildesensor(SensorEntity):
         raise NotImplementedError
 
 
-class NordpoolStromoversiktSensor(NordpoolKildesensor):
-    """Vis valgt Nord Pool-sensor som en norsk strømoversikt."""
+class NordpoolTimeSensor(NordpoolKildesensor):
+    """Vis dagens billigste eller dyreste hele strømtime."""
 
     _attr_has_entity_name = True
-    _attr_name = "Strømoversikt"
-    _attr_icon = "mdi:lightning-bolt"
-
-    def __init__(self, hass: HomeAssistant, entry: ConfigEntry) -> None:
-        """Opprett sensoren."""
-        super().__init__(hass, entry)
-        self._attr_unique_id = entry.entry_id
-        self._attr_native_value: Any = None
-        self._attr_available = False
-        self._attr_extra_state_attributes = {
-            "valgt_nordpool_sensor": self._source_entity_id
-        }
-
-    @callback
-    def _oppdater_fra_kildesensor(self) -> None:
-        """Kopier verdi og informasjon fra valgt sensor."""
-        state = self.hass.states.get(self._source_entity_id)
-
-        if state is None or state.state in (STATE_UNKNOWN, STATE_UNAVAILABLE):
-            self._attr_available = False
-            self._attr_native_value = None
-            return
-
-        self._attr_available = True
-        try:
-            self._attr_native_value = float(state.state)
-        except ValueError:
-            self._attr_native_value = state.state
-
-        self._attr_native_unit_of_measurement = state.attributes.get(
-            ATTR_UNIT_OF_MEASUREMENT
-        )
-        self._attr_extra_state_attributes = {
-            "valgt_nordpool_sensor": self._source_entity_id,
-            **state.attributes,
-        }
-
-
-class BilligstTimeSensor(NordpoolKildesensor):
-    """Vis dagens billigste hele strømtime."""
-
-    _attr_has_entity_name = True
-    _attr_name = "Billigst time"
-    _attr_icon = "mdi:cash-clock"
     _attr_state_class = SensorStateClass.MEASUREMENT
 
-    def __init__(self, hass: HomeAssistant, entry: ConfigEntry) -> None:
-        """Opprett sensoren for billigste time."""
+    def __init__(
+        self,
+        hass: HomeAssistant,
+        entry: ConfigEntry,
+        *,
+        navn: str,
+        unik_nøkkel: str,
+        ikon: str,
+        velg_høyeste: bool,
+    ) -> None:
+        """Opprett sensoren."""
         super().__init__(hass, entry)
-        self._attr_unique_id = f"{entry.entry_id}-billigst-time"
+        self._attr_name = navn
+        self._attr_unique_id = f"{entry.entry_id}-{unik_nøkkel}"
+        self._attr_icon = ikon
+        self._velg_høyeste = velg_høyeste
         self._attr_native_value: float | None = None
         self._attr_available = False
         self._attr_extra_state_attributes = {
@@ -156,21 +139,25 @@ class BilligstTimeSensor(NordpoolKildesensor):
 
     @callback
     def _oppdater_fra_kildesensor(self) -> None:
-        """Finn dagens billigste hele time fra raw_today eller today."""
+        """Finn dagens billigste eller dyreste hele time."""
         state = self.hass.states.get(self._source_entity_id)
         if state is None:
             self._sett_utilgjengelig()
             return
 
-        billigste = self._billigste_fra_raw_today(state.attributes.get("raw_today"))
-        if billigste is None:
-            billigste = self._billigste_fra_today(state.attributes.get("today"))
+        timer = hele_timer_fra_raw_today(state.attributes.get("raw_today"))
+        if not timer:
+            timer = hele_timer_fra_today(
+                state.attributes.get("today"),
+                dt_util.now(),
+            )
 
-        if billigste is None:
+        valgt = velg_time(timer, høyeste=self._velg_høyeste)
+        if valgt is None:
             self._sett_utilgjengelig()
             return
 
-        pris, start, stopp = billigste
+        pris, start, stopp = valgt
         self._attr_available = True
         self._attr_native_value = pris
         self._attr_native_unit_of_measurement = state.attributes.get(
@@ -190,129 +177,3 @@ class BilligstTimeSensor(NordpoolKildesensor):
             "starttid": None,
             "stopptid": None,
         }
-
-    @staticmethod
-    def _billigste_fra_raw_today(
-        raw_today: Any,
-    ) -> tuple[float, datetime, datetime] | None:
-        """Finn billigste klokktime fra time- eller kvarterspriser."""
-        if not isinstance(raw_today, list):
-            return None
-
-        perioder: list[tuple[datetime, datetime, float]] = []
-        for oppføring in raw_today:
-            if not isinstance(oppføring, dict):
-                continue
-
-            start = BilligstTimeSensor._som_datetime(oppføring.get("start"))
-            slutt = BilligstTimeSensor._som_datetime(oppføring.get("end"))
-            try:
-                pris = float(oppføring["value"])
-            except (KeyError, TypeError, ValueError):
-                continue
-
-            if start is None or slutt is None or slutt <= start:
-                continue
-            if not math.isfinite(pris):
-                continue
-
-            perioder.append((start, slutt, pris))
-
-        if not perioder:
-            return None
-
-        kandidater = {
-            start.replace(minute=0, second=0, microsecond=0)
-            for start, _slutt, _pris in perioder
-        }
-        hele_timer: list[tuple[float, datetime, datetime]] = []
-
-        for timestart in sorted(kandidater):
-            timeslutt = timestart + timedelta(hours=1)
-            deler: list[tuple[datetime, datetime, float]] = []
-
-            for start, slutt, pris in perioder:
-                delstart = max(start, timestart)
-                delslutt = min(slutt, timeslutt)
-                if delstart < delslutt:
-                    deler.append((delstart, delslutt, pris))
-
-            deler.sort(key=lambda delperiode: delperiode[0])
-            neste_tid = timestart
-            pris_ganger_sekunder = 0.0
-
-            for delstart, delslutt, pris in deler:
-                if delstart > neste_tid:
-                    break
-
-                gyldig_start = max(delstart, neste_tid)
-                if delslutt <= gyldig_start:
-                    continue
-
-                sekunder = (delslutt - gyldig_start).total_seconds()
-                pris_ganger_sekunder += pris * sekunder
-                neste_tid = delslutt
-
-                if neste_tid >= timeslutt:
-                    break
-
-            if neste_tid < timeslutt:
-                continue
-
-            timepris = pris_ganger_sekunder / timedelta(hours=1).total_seconds()
-            hele_timer.append(
-                (timepris, timestart, timeslutt - timedelta(seconds=1))
-            )
-
-        if not hele_timer:
-            return None
-        return min(hele_timer, key=lambda time: (time[0], time[1]))
-
-    @staticmethod
-    def _billigste_fra_today(
-        today: Any,
-    ) -> tuple[float, datetime, datetime] | None:
-        """Finn billigste time i en liste med time- eller kvarterspriser."""
-        if (
-            not isinstance(today, list)
-            or len(today) < 24
-            or len(today) % 24 != 0
-        ):
-            return None
-
-        verdier_per_time = len(today) // 24
-        priser: list[tuple[float, int]] = []
-        for time in range(24):
-            timeverdier = today[
-                time * verdier_per_time : (time + 1) * verdier_per_time
-            ]
-            try:
-                gyldige_verdier = [float(verdi) for verdi in timeverdier]
-            except (TypeError, ValueError):
-                continue
-
-            if (
-                len(gyldige_verdier) != verdier_per_time
-                or not all(math.isfinite(verdi) for verdi in gyldige_verdier)
-            ):
-                continue
-
-            priser.append((sum(gyldige_verdier) / verdier_per_time, time))
-
-        if not priser:
-            return None
-
-        pris, time = min(priser, key=lambda verdi: (verdi[0], verdi[1]))
-        nå = dt_util.now()
-        start = nå.replace(hour=time, minute=0, second=0, microsecond=0)
-        stopp = start + timedelta(hours=1) - timedelta(seconds=1)
-        return pris, start, stopp
-
-    @staticmethod
-    def _som_datetime(verdi: Any) -> datetime | None:
-        """Gjør om en datetime eller ISO-tekst til datetime."""
-        if isinstance(verdi, datetime):
-            return verdi
-        if isinstance(verdi, str):
-            return dt_util.parse_datetime(verdi)
-        return None

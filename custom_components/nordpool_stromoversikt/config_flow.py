@@ -21,24 +21,23 @@ class NordpoolStromoversiktConfigFlow(ConfigFlow, domain=DOMAIN):
     async def async_step_user(
         self, user_input: dict[str, Any] | None = None
     ) -> ConfigFlowResult:
-        """Be brukeren velge sensoren som Nord Pool har opprettet."""
+        """Velg automatisk når bare én Nord Pool-sensor finnes."""
         errors: dict[str, str] = {}
+        sensorer = self._finn_nordpool_sensorer()
+
+        if not sensorer:
+            return self.async_abort(reason="ingen_nordpool_sensor")
+
+        if user_input is None and len(sensorer) == 1:
+            return await self._opprett_oppføring(sensorer[0])
 
         if user_input is not None:
             entity_id = user_input[CONF_NORDPOOL_SENSOR]
-            registry_entry = er.async_get(self.hass).async_get(entity_id)
 
-            if registry_entry is None or registry_entry.platform != "nordpool":
+            if entity_id not in sensorer:
                 errors["base"] = "ikke_nordpool_sensor"
-            elif self.hass.states.get(entity_id) is None:
-                errors["base"] = "sensor_ikke_tilgjengelig"
             else:
-                await self.async_set_unique_id(entity_id)
-                self._abort_if_unique_id_configured()
-                return self.async_create_entry(
-                    title="Nordpool strømoversikt",
-                    data={CONF_NORDPOOL_SENSOR: entity_id},
-                )
+                return await self._opprett_oppføring(entity_id)
 
         return self.async_show_form(
             step_id="user",
@@ -53,4 +52,24 @@ class NordpoolStromoversiktConfigFlow(ConfigFlow, domain=DOMAIN):
                 }
             ),
             errors=errors,
+        )
+
+    def _finn_nordpool_sensorer(self) -> list[str]:
+        """Finn registrerte Nord Pool-sensorer som finnes i tilstandsmaskinen."""
+        register = er.async_get(self.hass)
+        return sorted(
+            oppføring.entity_id
+            for oppføring in register.entities.values()
+            if oppføring.domain == "sensor"
+            and oppføring.platform == "nordpool"
+            and self.hass.states.get(oppføring.entity_id) is not None
+        )
+
+    async def _opprett_oppføring(self, entity_id: str) -> ConfigFlowResult:
+        """Opprett integrasjonen for valgt Nord Pool-sensor."""
+        await self.async_set_unique_id(entity_id)
+        self._abort_if_unique_id_configured()
+        return self.async_create_entry(
+            title="Nordpool strømoversikt",
+            data={CONF_NORDPOOL_SENSOR: entity_id},
         )

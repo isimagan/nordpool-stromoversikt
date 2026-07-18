@@ -2,7 +2,8 @@
   "title": "Nordpool strømoversikt",
   "config": {
     "abort": {
-      "already_configured": "Denne Nord Pool-sensoren er allerede lagt til."
+      "already_configured": "Denne Nord Pool-sensoren er allerede lagt til.",
+      "ingen_nordpool_sensor": "Ingen Nord Pool-sensor ble funnet. Installer og konfigurer Nord Pool først."
     },
     "error": {
       "ikke_nordpool_sensor": "Du må velge en sensor som er opprettet av Nord Pool-integrasjonen.",
@@ -11,7 +12,7 @@
     "step": {
       "user": {
         "title": "Velg Nord Pool-sensor",
-        "description": "Nord Pool må være installert og konfigurert. Velg sensoren som skal brukes i strømoversikten.",
+        "description": "Flere Nord Pool-sensorer ble funnet. Velg sensoren som prissensorene skal bruke.",
         "data": {
           "nordpool_sensor": "Nord Pool-sensor"
         },
@@ -22,4 +23,3 @@
     }
   }
 }
-
