@@ -1,11 +1,10 @@
 # Nordpool strømoversikt
 
-En norsk Home Assistant-integrasjon som lager én enkel strømoversikt basert på
-en sensor fra den offisielle **Nord Pool-integrasjonen**.
+En norsk Home Assistant-integrasjon som lager prissensorer basert på en sensor
+fra den offisielle **Nord Pool-integrasjonen**.
 
-Under oppsettet må du velge sensoren som Nord Pool har opprettet. Integrasjonen
-viser bare sensorer som tilhører Nord Pool, slik at du ikke kan velge feil type
-sensor.
+Hvis du har én Nord Pool-sensor, brukes den automatisk under oppsettet. Hvis du
+har flere, ber integrasjonen deg velge hvilken som skal brukes.
 
 ## Krav
 
@@ -27,9 +26,9 @@ sensor.
 1. Gå til **Innstillinger → Enheter og tjenester**.
 2. Velg **Legg til integrasjon**.
 3. Søk etter **Nordpool strømoversikt**.
-4. Velg Nord Pool-sensoren du vil bruke, for eksempel sensoren for gjeldende
-   pris.
-5. Velg **Send inn**.
+4. Hvis du har flere Nord Pool-sensorer, velger du sensoren du vil bruke.
+   Har du bare én, velges den automatisk.
+5. Velg **Send inn** hvis du får opp sensorvalget.
 
 Integrasjonen oppretter sensorene på informasjonssiden til den valgte Nord
 Pool-enheten.
@@ -47,22 +46,23 @@ gjennomsnitt. Den fungerer også når Nord Pool leverer én pris per time.
 Sensoren har to attributter:
 
 - `starttid`: tidspunktet den billigste timen starter
-- `stopptid`: tidspunktet den billigste timen slutter
+- `stopptid`: starten på neste time, med sekunder satt til `00`
 
 Hvis flere timer har samme laveste pris, velges den første timen.
 
-### Strømoversikt
+### Dyreste time
 
-Sensoren **Strømoversikt** følger tilstanden, måleenheten og de synlige
-attributtene til Nord Pool-sensoren du valgte.
+Sensoren **Dyreste time** bruker samme beregning som **Billigst time**, men
+viser prisen for dagens dyreste hele strømtime. Den har attributtene `starttid`
+og `stopptid`. Hvis flere timer har samme høyeste pris, velges den første.
 
 Hvis Nord Pool ikke er installert, eller ingen Nord Pool-sensor finnes, må du
 installere og konfigurere Nord Pool før du kan fullføre oppsettet.
 
 ## Endre valgt sensor
 
-Fjern integrasjonen fra **Innstillinger → Enheter og tjenester**, legg den til
-på nytt og velg en annen Nord Pool-sensor.
+Fjern integrasjonen fra **Innstillinger → Enheter og tjenester** og legg den
+til på nytt. Hvis du har flere Nord Pool-sensorer, kan du velge en annen.
 
 ## Feil og forslag
 

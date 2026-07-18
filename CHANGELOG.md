@@ -2,6 +2,25 @@
 
 Alle vesentlige endringer i Nordpool strømoversikt dokumenteres i denne filen.
 
+## Ikke utgitt
+
+### Lagt til
+
+- Sensoren **Dyreste time**, med samme oppsett og attributter som
+  **Billigst time**.
+- Automatisk valg av Nord Pool-sensor når bare én slik sensor finnes.
+
+### Endret
+
+- `stopptid` på prissensorene er nå starten på neste hele time, med sekunder
+  satt til `00`.
+- Sensorvalget vises bare når flere Nord Pool-sensorer finnes.
+
+### Fjernet
+
+- Den overflødige sensoren **Strømoversikt**, som dupliserte Nord
+  Pool-sensoren.
+
 ## 0.3.0 – 2026-07-19
 
 ### Rettet
