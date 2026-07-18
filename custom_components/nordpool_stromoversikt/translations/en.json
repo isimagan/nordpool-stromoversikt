@@ -1,0 +1,25 @@
+{
+  "title": "Nordpool strømoversikt",
+  "config": {
+    "abort": {
+      "already_configured": "Denne Nord Pool-sensoren er allerede lagt til."
+    },
+    "error": {
+      "ikke_nordpool_sensor": "Du må velge en sensor som er opprettet av Nord Pool-integrasjonen.",
+      "sensor_ikke_tilgjengelig": "Den valgte sensoren er ikke tilgjengelig. Kontroller Nord Pool-integrasjonen og prøv igjen."
+    },
+    "step": {
+      "user": {
+        "title": "Velg Nord Pool-sensor",
+        "description": "Nord Pool må være installert og konfigurert. Velg sensoren som skal brukes i strømoversikten.",
+        "data": {
+          "nordpool_sensor": "Nord Pool-sensor"
+        },
+        "data_description": {
+          "nordpool_sensor": "Bare sensorer som er opprettet av Nord Pool vises."
+        }
+      }
+    }
+  }
+}
+
