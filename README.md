@@ -31,8 +31,26 @@ sensor.
    pris.
 5. Velg **Send inn**.
 
-Integrasjonen oppretter sensoren **Strømoversikt**. Den følger tilstanden,
-måleenheten og de synlige attributtene til Nord Pool-sensoren du valgte.
+Integrasjonen oppretter sensorene på informasjonssiden til den valgte Nord
+Pool-enheten.
+
+### Billigst time
+
+Sensoren **Billigst time** viser prisen for dagens billigste hele strømtime.
+Den leser først attributtet `raw_today` og bruker `today` som reserve dersom
+`raw_today` ikke finnes.
+
+Sensoren har to attributter:
+
+- `starttid`: tidspunktet den billigste timen starter
+- `stopptid`: tidspunktet den billigste timen slutter
+
+Hvis flere timer har samme laveste pris, velges den første timen.
+
+### Strømoversikt
+
+Sensoren **Strømoversikt** følger tilstanden, måleenheten og de synlige
+attributtene til Nord Pool-sensoren du valgte.
 
 Hvis Nord Pool ikke er installert, eller ingen Nord Pool-sensor finnes, må du
 installere og konfigurere Nord Pool før du kan fullføre oppsettet.
@@ -47,4 +65,3 @@ på nytt og velg en annen Nord Pool-sensor.
 Opprett en sak under **Issues** i dette repoet. Beskriv hvilken Home
 Assistant-versjon du bruker, hvilken Nord Pool-sensor du valgte og hva du
 forventet skulle skje.
-
