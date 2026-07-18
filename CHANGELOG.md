@@ -2,6 +2,21 @@
 
 Alle vesentlige endringer i Nordpool strømoversikt dokumenteres i denne filen.
 
+## 0.3.0 – 2026-07-19
+
+### Rettet
+
+- **Billigst time** støtter nå Nord Pools kvarterspriser og blir ikke
+  utilgjengelig når `raw_today` eller `today` inneholder 96 verdier.
+- Prisene som dekker en hel klokktime samles til et tidsvektet gjennomsnitt.
+- Ugyldige, manglende og ikke-endelige prisverdier ignoreres.
+
+### Endret
+
+- Integrasjonen vises nå som en vanlig tjenesteintegrasjon i stedet for i
+  hjelper-listen.
+- Integrasjonsversjonen er oppdatert til `0.3.0`.
+
 ## 0.2.0 – 2026-07-19
 
 ### Lagt til
