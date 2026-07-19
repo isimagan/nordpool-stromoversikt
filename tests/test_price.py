@@ -21,6 +21,7 @@ SPESIFIKASJON.loader.exec_module(PRISMODUL)
 
 hele_timer_fra_raw_today = PRISMODUL.hele_timer_fra_raw_today
 hele_timer_fra_today = PRISMODUL.hele_timer_fra_today
+formater_tidsrom = PRISMODUL.formater_tidsrom
 velg_time = PRISMODUL.velg_time
 
 
@@ -103,6 +104,13 @@ class PristimeTest(unittest.TestCase):
         ]
 
         self.assertEqual(hele_timer_fra_raw_today(raw_today), [])
+
+    def test_tidsrom_formateres_som_sensorverdi(self) -> None:
+        """Start og stopp skal vises som ett lesbart tidsrom."""
+        start = self.start.replace(hour=23)
+        stopp = start + timedelta(hours=1)
+
+        self.assertEqual(formater_tidsrom(start, stopp), "23:00-00:00")
 
 
 if __name__ == "__main__":
