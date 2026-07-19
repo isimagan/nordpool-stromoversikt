@@ -35,26 +35,29 @@ Pool-enheten.
 
 ### Billigst time
 
-Sensoren **Billigst time** viser prisen for dagens billigste hele strømtime.
-Den leser først attributtet `raw_today` og bruker `today` som reserve dersom
-`raw_today` ikke finnes.
+Sensoren **Billigst time** viser dagens billigste hele strømtime som et
+tidsrom, for eksempel `03:00-04:00`. Den leser først attributtet `raw_today`
+og bruker `today` som reserve dersom `raw_today` ikke finnes.
 
 Hvis Nord Pool leverer priser hvert 15. minutt, samler sensoren de fire
 kvartersprisene som dekker en hel klokktime og beregner et tidsvektet
 gjennomsnitt. Den fungerer også når Nord Pool leverer én pris per time.
 
-Sensoren har to attributter:
+Sensoren har tre attributter:
 
+- `pris`: prisen for den valgte timen
 - `starttid`: tidspunktet den billigste timen starter
 - `stopptid`: starten på neste time, med sekunder satt til `00`
+
+Sensoren har ikke tilstandsklasse eller måleenhet, fordi tilstanden er tekst.
 
 Hvis flere timer har samme laveste pris, velges den første timen.
 
 ### Dyreste time
 
-Sensoren **Dyreste time** bruker samme beregning som **Billigst time**, men
-viser prisen for dagens dyreste hele strømtime. Den har attributtene `starttid`
-og `stopptid`. Hvis flere timer har samme høyeste pris, velges den første.
+Sensoren **Dyreste time** bruker samme oppsett som **Billigst time**, men viser
+tidsrommet for dagens dyreste hele strømtime. Prisen ligger i attributtet
+`pris`. Hvis flere timer har samme høyeste pris, velges den første.
 
 Hvis Nord Pool ikke er installert, eller ingen Nord Pool-sensor finnes, må du
 installere og konfigurere Nord Pool før du kan fullføre oppsettet.

@@ -2,6 +2,15 @@
 
 Alle vesentlige endringer i Nordpool strømoversikt dokumenteres i denne filen.
 
+## Ikke utgitt
+
+### Endret
+
+- Tilstanden til **Billigst time** og **Dyreste time** viser nå tidsrommet som
+  `xx:xx-yy:yy`.
+- Prisen er flyttet fra sensortilstanden til attributtet `pris`.
+- Tilstandsklasse og måleenhet er fjernet fra begge prissensorene.
+
 ## 0.4.0 – 2026-07-19
 
 ### Lagt til

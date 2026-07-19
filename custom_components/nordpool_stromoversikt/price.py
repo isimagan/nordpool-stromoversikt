@@ -9,6 +9,11 @@ from typing import Any
 Pristime = tuple[float, datetime, datetime]
 
 
+def formater_tidsrom(start: datetime, stopp: datetime) -> str:
+    """Formater et tidsrom som klokkeslett uten dato."""
+    return f"{start:%H:%M}-{stopp:%H:%M}"
+
+
 def hele_timer_fra_raw_today(raw_today: Any) -> list[Pristime]:
     """Lag hele klokketimer fra tidsfestede prisintervaller."""
     if not isinstance(raw_today, list):

@@ -2,9 +2,8 @@
 
 from __future__ import annotations
 
-from homeassistant.components.sensor import SensorEntity, SensorStateClass
+from homeassistant.components.sensor import SensorEntity
 from homeassistant.config_entries import ConfigEntry
-from homeassistant.const import ATTR_UNIT_OF_MEASUREMENT
 from homeassistant.core import Event, EventStateChangedData, HomeAssistant, callback
 from homeassistant.helpers import device_registry as dr, entity_registry as er
 from homeassistant.helpers.device_registry import DeviceInfo
@@ -13,7 +12,12 @@ from homeassistant.helpers.event import async_track_state_change_event
 from homeassistant.util import dt as dt_util
 
 from .const import CONF_NORDPOOL_SENSOR, DOMAIN
-from .price import hele_timer_fra_raw_today, hele_timer_fra_today, velg_time
+from .price import (
+    formater_tidsrom,
+    hele_timer_fra_raw_today,
+    hele_timer_fra_today,
+    velg_time,
+)
 
 
 async def async_setup_entry(
@@ -112,7 +116,6 @@ class NordpoolTimeSensor(NordpoolKildesensor):
     """Vis dagens billigste eller dyreste hele strømtime."""
 
     _attr_has_entity_name = True
-    _attr_state_class = SensorStateClass.MEASUREMENT
 
     def __init__(
         self,
@@ -130,9 +133,10 @@ class NordpoolTimeSensor(NordpoolKildesensor):
         self._attr_unique_id = f"{entry.entry_id}-{unik_nøkkel}"
         self._attr_icon = ikon
         self._velg_høyeste = velg_høyeste
-        self._attr_native_value: float | None = None
+        self._attr_native_value: str | None = None
         self._attr_available = False
         self._attr_extra_state_attributes = {
+            "pris": None,
             "starttid": None,
             "stopptid": None,
         }
@@ -159,11 +163,9 @@ class NordpoolTimeSensor(NordpoolKildesensor):
 
         pris, start, stopp = valgt
         self._attr_available = True
-        self._attr_native_value = pris
-        self._attr_native_unit_of_measurement = state.attributes.get(
-            ATTR_UNIT_OF_MEASUREMENT
-        )
+        self._attr_native_value = formater_tidsrom(start, stopp)
         self._attr_extra_state_attributes = {
+            "pris": pris,
             "starttid": start.isoformat(),
             "stopptid": stopp.isoformat(),
         }
@@ -174,6 +176,7 @@ class NordpoolTimeSensor(NordpoolKildesensor):
         self._attr_available = False
         self._attr_native_value = None
         self._attr_extra_state_attributes = {
+            "pris": None,
             "starttid": None,
             "stopptid": None,
         }
