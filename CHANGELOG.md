@@ -2,7 +2,7 @@
 
 Alle vesentlige endringer i Nordpool strømoversikt dokumenteres i denne filen.
 
-## Ikke utgitt
+## 0.5.0 – 2026-07-19
 
 ### Endret
 
@@ -10,6 +10,7 @@ Alle vesentlige endringer i Nordpool strømoversikt dokumenteres i denne filen.
   `xx:xx-yy:yy`.
 - Prisen er flyttet fra sensortilstanden til attributtet `pris`.
 - Tilstandsklasse og måleenhet er fjernet fra begge prissensorene.
+- Integrasjonsversjonen er oppdatert til `0.5.0`.
 
 ## 0.4.0 – 2026-07-19
 
