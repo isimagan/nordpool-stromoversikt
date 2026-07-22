@@ -59,6 +59,17 @@ Sensoren **Dyreste time** bruker samme oppsett som **Billigst time**, men viser
 tidsrommet for dagens dyreste hele strømtime. Prisen ligger i attributtet
 `pris`. Hvis flere timer har samme høyeste pris, velges den første.
 
+### Strømstøtte
+
+Sensoren **Strømstøtte** viser gjeldende Nord Pool-pris etter beregnet
+strømstøtte, med måleenheten `kr`. Når prisen er høyere enn 0,9625 kr/kWh,
+trekkes 90 prosent av beløpet over denne grensen fra prisen:
+
+`pris - ((pris - 0,9625) × 0,9)`
+
+Når prisen er lik eller lavere enn 0,9625 kr/kWh, er sensorverdien den samme
+som Nord Pool-prisen.
+
 Hvis Nord Pool ikke er installert, eller ingen Nord Pool-sensor finnes, må du
 installere og konfigurere Nord Pool før du kan fullføre oppsettet.
 

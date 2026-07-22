@@ -8,6 +8,16 @@ from typing import Any
 
 Pristime = tuple[float, datetime, datetime]
 
+STROMSTOTTE_GRENSE = 0.9625
+STROMSTOTTE_ANDEL = 0.9
+
+
+def pris_etter_stromstotte(pris: float) -> float:
+    """Beregn strømpris etter strømstøtte, i kroner per kWh."""
+    if pris <= STROMSTOTTE_GRENSE:
+        return pris
+    return pris - ((pris - STROMSTOTTE_GRENSE) * STROMSTOTTE_ANDEL)
+
 
 def formater_tidsrom(start: datetime, stopp: datetime) -> str:
     """Formater et tidsrom som klokkeslett uten dato."""

@@ -22,6 +22,7 @@ SPESIFIKASJON.loader.exec_module(PRISMODUL)
 hele_timer_fra_raw_today = PRISMODUL.hele_timer_fra_raw_today
 hele_timer_fra_today = PRISMODUL.hele_timer_fra_today
 formater_tidsrom = PRISMODUL.formater_tidsrom
+pris_etter_stromstotte = PRISMODUL.pris_etter_stromstotte
 velg_time = PRISMODUL.velg_time
 
 
@@ -111,6 +112,22 @@ class PristimeTest(unittest.TestCase):
         stopp = start + timedelta(hours=1)
 
         self.assertEqual(formater_tidsrom(start, stopp), "23:00-00:00")
+
+
+class StromstotteTest(unittest.TestCase):
+    """Kontroller beregning av pris etter strømstøtte."""
+
+    def test_pris_under_grensen_endres_ikke(self) -> None:
+        """Det gis ikke støtte når prisen er under grensen."""
+        self.assertEqual(pris_etter_stromstotte(0.5), 0.5)
+
+    def test_pris_pa_grensen_endres_ikke(self) -> None:
+        """Det gis ikke støtte når prisen er lik grensen."""
+        self.assertEqual(pris_etter_stromstotte(0.9625), 0.9625)
+
+    def test_nitti_prosent_over_grensen_dekkes(self) -> None:
+        """Staten dekker 90 prosent av beløpet over grensen."""
+        self.assertAlmostEqual(pris_etter_stromstotte(1.5), 1.01625)
 
 
 if __name__ == "__main__":
