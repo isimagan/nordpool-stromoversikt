@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+import math
+
 from homeassistant.components.sensor import SensorEntity
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.core import Event, EventStateChangedData, HomeAssistant, callback
@@ -16,6 +18,7 @@ from .price import (
     formater_tidsrom,
     hele_timer_fra_raw_today,
     hele_timer_fra_today,
+    pris_etter_stromstotte,
     velg_time,
 )
 
@@ -53,6 +56,7 @@ async def async_setup_entry(
                 ikon="mdi:chart-line",
                 velg_høyeste=True,
             ),
+            NordpoolStromstotteSensor(hass, entry),
         ],
         update_before_add=True,
     )
@@ -180,3 +184,46 @@ class NordpoolTimeSensor(NordpoolKildesensor):
             "starttid": None,
             "stopptid": None,
         }
+
+
+class NordpoolStromstotteSensor(NordpoolKildesensor):
+    """Vis gjeldende strømpris etter beregnet strømstøtte."""
+
+    _attr_has_entity_name = True
+    _attr_name = "Strømstøtte"
+    _attr_icon = "mdi:cash-refund"
+    _attr_native_unit_of_measurement = "kr"
+
+    def __init__(self, hass: HomeAssistant, entry: ConfigEntry) -> None:
+        """Opprett strømstøttesensoren."""
+        super().__init__(hass, entry)
+        self._attr_unique_id = f"{entry.entry_id}-stromstotte"
+        self._attr_native_value: float | None = None
+        self._attr_available = False
+
+    @callback
+    def _oppdater_fra_kildesensor(self) -> None:
+        """Beregn gjeldende pris etter strømstøtte."""
+        state = self.hass.states.get(self._source_entity_id)
+        if state is None:
+            self._sett_utilgjengelig()
+            return
+
+        try:
+            pris = float(state.state)
+        except (TypeError, ValueError):
+            self._sett_utilgjengelig()
+            return
+
+        if not math.isfinite(pris):
+            self._sett_utilgjengelig()
+            return
+
+        self._attr_available = True
+        self._attr_native_value = pris_etter_stromstotte(pris)
+
+    @callback
+    def _sett_utilgjengelig(self) -> None:
+        """Tøm verdien når Nord Pool ikke har en gyldig pris."""
+        self._attr_available = False
+        self._attr_native_value = None
