@@ -15,8 +15,11 @@ STROMSTOTTE_ANDEL = 0.9
 def pris_etter_stromstotte(pris: float) -> float:
     """Beregn strømpris etter strømstøtte, i kroner per kWh."""
     if pris <= STROMSTOTTE_GRENSE:
-        return pris
-    return pris - ((pris - STROMSTOTTE_GRENSE) * STROMSTOTTE_ANDEL)
+        return round(pris, 2)
+    pris_med_stotte = pris - (
+        (pris - STROMSTOTTE_GRENSE) * STROMSTOTTE_ANDEL
+    )
+    return round(pris_med_stotte, 2)
 
 
 def formater_tidsrom(start: datetime, stopp: datetime) -> str:

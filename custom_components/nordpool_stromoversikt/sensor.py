@@ -193,6 +193,7 @@ class NordpoolStromstotteSensor(NordpoolKildesensor):
     _attr_name = "Strømstøtte"
     _attr_icon = "mdi:cash-refund"
     _attr_native_unit_of_measurement = "kr"
+    _attr_suggested_display_precision = 2
 
     def __init__(self, hass: HomeAssistant, entry: ConfigEntry) -> None:
         """Opprett strømstøttesensoren."""

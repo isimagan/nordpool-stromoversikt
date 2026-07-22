@@ -122,12 +122,12 @@ class StromstotteTest(unittest.TestCase):
         self.assertEqual(pris_etter_stromstotte(0.5), 0.5)
 
     def test_pris_pa_grensen_endres_ikke(self) -> None:
-        """Det gis ikke støtte når prisen er lik grensen."""
-        self.assertEqual(pris_etter_stromstotte(0.9625), 0.9625)
+        """Prisen avrundes til to desimaler når den er lik grensen."""
+        self.assertEqual(pris_etter_stromstotte(0.9625), 0.96)
 
     def test_nitti_prosent_over_grensen_dekkes(self) -> None:
-        """Staten dekker 90 prosent av beløpet over grensen."""
-        self.assertAlmostEqual(pris_etter_stromstotte(1.5), 1.01625)
+        """Staten dekker 90 prosent og resultatet får to desimaler."""
+        self.assertEqual(pris_etter_stromstotte(1.5), 1.02)
 
 
 if __name__ == "__main__":

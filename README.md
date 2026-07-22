@@ -62,8 +62,9 @@ tidsrommet for dagens dyreste hele strømtime. Prisen ligger i attributtet
 ### Strømstøtte
 
 Sensoren **Strømstøtte** viser gjeldende Nord Pool-pris etter beregnet
-strømstøtte, med måleenheten `kr`. Når prisen er høyere enn 0,9625 kr/kWh,
-trekkes 90 prosent av beløpet over denne grensen fra prisen:
+strømstøtte, avrundet og vist med to desimaler og måleenheten `kr`. Når prisen
+er høyere enn 0,9625 kr/kWh, trekkes 90 prosent av beløpet over denne grensen
+fra prisen:
 
 `pris - ((pris - 0,9625) × 0,9)`
 

@@ -2,7 +2,7 @@
 
 Alle vesentlige endringer i Nordpool strømoversikt dokumenteres i denne filen.
 
-## 0.6.0 – 2026-07-23
+## 1.0.0 – 2026-07-23
 
 ### Lagt til
 
@@ -12,7 +12,8 @@ Alle vesentlige endringer i Nordpool strømoversikt dokumenteres i denne filen.
 
 ### Endret
 
-- Integrasjonsversjonen er oppdatert til `0.6.0`.
+- Tilstanden til **Strømstøtte** avrundes og vises med to desimaler.
+- Integrasjonsversjonen er oppdatert til `1.0.0`.
 
 ## 0.5.0 – 2026-07-19
 
