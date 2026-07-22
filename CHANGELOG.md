@@ -2,6 +2,18 @@
 
 Alle vesentlige endringer i Nordpool strømoversikt dokumenteres i denne filen.
 
+## 0.6.0 – 2026-07-23
+
+### Lagt til
+
+- Sensoren **Strømstøtte**, som viser gjeldende Nord Pool-pris etter beregnet
+  strømstøtte.
+- Strømstøtteberegning som dekker 90 prosent av prisen over 0,9625 kr/kWh.
+
+### Endret
+
+- Integrasjonsversjonen er oppdatert til `0.6.0`.
+
 ## 0.5.0 – 2026-07-19
 
 ### Endret
