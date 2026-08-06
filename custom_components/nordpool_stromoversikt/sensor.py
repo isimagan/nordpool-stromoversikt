@@ -19,6 +19,7 @@ from .price import (
     hele_timer_fra_raw_today,
     hele_timer_fra_today,
     pris_etter_stromstotte,
+    timepriser_fra_dagspriser,
     timepriser_etter_stromstotte,
     velg_time,
 )
@@ -58,6 +59,7 @@ async def async_setup_entry(
                 velg_høyeste=True,
             ),
             NordpoolStromstotteSensor(hass, entry),
+            NordpoolIMorgenSensor(hass, entry),
         ],
         update_before_add=True,
     )
@@ -237,4 +239,58 @@ class NordpoolStromstotteSensor(NordpoolKildesensor):
         self._attr_extra_state_attributes = {
             "idag": None,
             "snittpris": None,
+        }
+
+
+class NordpoolIMorgenSensor(NordpoolKildesensor):
+    """Vis gjennomsnittsprisen for i morgen."""
+
+    _attr_has_entity_name = True
+    _attr_name = "I morgen"
+    _attr_icon = "mdi:calendar-arrow-right"
+    _attr_native_unit_of_measurement = "kr"
+    _attr_suggested_display_precision = 2
+
+    def __init__(self, hass: HomeAssistant, entry: ConfigEntry) -> None:
+        """Opprett sensoren for morgendagens priser."""
+        super().__init__(hass, entry)
+        self._attr_unique_id = f"{entry.entry_id}-i-morgen"
+        self._attr_native_value: float | None = None
+        self._attr_available = False
+        self._attr_extra_state_attributes = {
+            "pris": None,
+            "stotte": None,
+        }
+
+    @callback
+    def _oppdater_fra_kildesensor(self) -> None:
+        """Beregn morgendagens snittpris og timepriser."""
+        state = self.hass.states.get(self._source_entity_id)
+        if state is None or state.attributes.get("tomorrow_valid") is not True:
+            self._sett_utilgjengelig()
+            return
+
+        priser = timepriser_fra_dagspriser(
+            state.attributes.get("tomorrow"),
+            dt_util.now(),
+        )
+        if len(priser) != 24:
+            self._sett_utilgjengelig()
+            return
+
+        self._attr_available = True
+        self._attr_native_value = round(sum(priser) / len(priser), 2)
+        self._attr_extra_state_attributes = {
+            "pris": priser,
+            "stotte": [pris_etter_stromstotte(pris) for pris in priser],
+        }
+
+    @callback
+    def _sett_utilgjengelig(self) -> None:
+        """Tøm verdiene når morgendagens priser ikke er gyldige."""
+        self._attr_available = False
+        self._attr_native_value = None
+        self._attr_extra_state_attributes = {
+            "pris": None,
+            "stotte": None,
         }
