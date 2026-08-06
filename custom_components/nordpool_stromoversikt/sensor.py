@@ -274,7 +274,7 @@ class NordpoolIMorgenSensor(NordpoolKildesensor):
             state.attributes.get("tomorrow"),
             dt_util.now(),
         )
-        if len(priser) != 24:
+        if len(priser) not in (23, 24, 25):
             self._sett_utilgjengelig()
             return
 

@@ -135,16 +135,39 @@ def hele_timer_fra_today(today: Any, nå: datetime) -> list[Pristime]:
 
 
 def timepriser_fra_dagspriser(dagspriser: Any, nå: datetime) -> list[float]:
-    """Lag 24 timepriser fra en liste med time- eller kvarterspriser."""
-    timer = hele_timer_fra_today(dagspriser, nå)
-    if len(timer) != 24:
+    """Lag timepriser fra et komplett døgn med time- eller kvarterspriser."""
+    if not isinstance(dagspriser, list):
         return []
 
-    return [pris for pris, _start, _stopp in timer]
+    if len(dagspriser) in (23, 24, 25):
+        verdier_per_time = 1
+    elif len(dagspriser) in (92, 96, 100):
+        verdier_per_time = 4
+    else:
+        return []
+
+    priser: list[float] = []
+    for indeks in range(0, len(dagspriser), verdier_per_time):
+        try:
+            timeverdier = [
+                float(verdi)
+                for verdi in dagspriser[indeks : indeks + verdier_per_time]
+            ]
+        except (TypeError, ValueError):
+            return []
+
+        if (
+            len(timeverdier) != verdier_per_time
+            or not all(math.isfinite(verdi) for verdi in timeverdier)
+        ):
+            return []
+        priser.append(sum(timeverdier) / verdier_per_time)
+
+    return priser
 
 
 def timepriser_etter_stromstotte(today: Any, nå: datetime) -> list[float]:
-    """Lag 24 timepriser for i dag etter beregnet strømstøtte."""
+    """Lag timepriser for i dag etter beregnet strømstøtte."""
     priser = timepriser_fra_dagspriser(today, nå)
 
     return [
