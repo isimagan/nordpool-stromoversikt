@@ -7,8 +7,8 @@ import math
 from homeassistant.components.sensor import SensorEntity
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.core import Event, EventStateChangedData, HomeAssistant, callback
-from homeassistant.helpers import device_registry as dr, entity_registry as er
-from homeassistant.helpers.device_registry import DeviceInfo
+from homeassistant.helpers import entity_registry as er
+from homeassistant.helpers.device import async_entity_id_to_device
 from homeassistant.helpers.entity_platform import AddConfigEntryEntitiesCallback
 from homeassistant.helpers.event import async_track_state_change_event
 from homeassistant.util import dt as dt_util
@@ -69,22 +69,7 @@ class NordpoolKildesensor(SensorEntity):
         """Knytt sensoren til valgt Nord Pool-sensor og dens enhet."""
         self.hass = hass
         self._source_entity_id = entry.data[CONF_NORDPOOL_SENSOR]
-        self._attr_device_info = self._finn_nordpool_enhet()
-
-    def _finn_nordpool_enhet(self) -> DeviceInfo | None:
-        """Returner Nord Pool-enheten slik at sensoren vises på informasjonssiden."""
-        kilde = er.async_get(self.hass).async_get(self._source_entity_id)
-        if kilde is None or kilde.device_id is None:
-            return None
-
-        enhet = dr.async_get(self.hass).async_get(kilde.device_id)
-        if enhet is None:
-            return None
-
-        return DeviceInfo(
-            identifiers=enhet.identifiers,
-            connections=enhet.connections,
-        )
+        self.device_entry = async_entity_id_to_device(hass, self._source_entity_id)
 
     async def async_added_to_hass(self) -> None:
         """Følg endringer fra valgt Nord Pool-sensor."""
