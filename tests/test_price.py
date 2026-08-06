@@ -98,6 +98,22 @@ class PristimeTest(unittest.TestCase):
 
         self.assertEqual(priser, [1.5] * 24)
 
+    def test_sommertid_dogn_med_23_timer_godtas(self) -> None:
+        """92 kvarterspriser skal bli 23 timepriser."""
+        dagspriser = [1.0, 1.0, 2.0, 2.0] * 23
+
+        priser = timepriser_fra_dagspriser(dagspriser, self.start)
+
+        self.assertEqual(priser, [1.5] * 23)
+
+    def test_vintertid_dogn_med_25_timer_godtas(self) -> None:
+        """100 kvarterspriser skal bli 25 timepriser."""
+        dagspriser = [1.0, 1.0, 2.0, 2.0] * 25
+
+        priser = timepriser_fra_dagspriser(dagspriser, self.start)
+
+        self.assertEqual(priser, [1.5] * 25)
+
     def test_ugyldig_dagsliste_gir_ingen_timepriser(self) -> None:
         """En ufullstendig dagsliste skal ikke gi delvise timepriser."""
         self.assertEqual(
