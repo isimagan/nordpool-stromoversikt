@@ -134,15 +134,22 @@ def hele_timer_fra_today(today: Any, nå: datetime) -> list[Pristime]:
     return hele_timer
 
 
-def timepriser_etter_stromstotte(today: Any, nå: datetime) -> list[float]:
-    """Lag 24 timepriser for i dag etter beregnet strømstøtte."""
-    timer = hele_timer_fra_today(today, nå)
+def timepriser_fra_dagspriser(dagspriser: Any, nå: datetime) -> list[float]:
+    """Lag 24 timepriser fra en liste med time- eller kvarterspriser."""
+    timer = hele_timer_fra_today(dagspriser, nå)
     if len(timer) != 24:
         return []
 
+    return [pris for pris, _start, _stopp in timer]
+
+
+def timepriser_etter_stromstotte(today: Any, nå: datetime) -> list[float]:
+    """Lag 24 timepriser for i dag etter beregnet strømstøtte."""
+    priser = timepriser_fra_dagspriser(today, nå)
+
     return [
         pris_etter_stromstotte(pris)
-        for pris, _start, _stopp in timer
+        for pris in priser
     ]
 
 

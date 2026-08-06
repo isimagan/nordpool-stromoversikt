@@ -23,6 +23,7 @@ hele_timer_fra_raw_today = PRISMODUL.hele_timer_fra_raw_today
 hele_timer_fra_today = PRISMODUL.hele_timer_fra_today
 formater_tidsrom = PRISMODUL.formater_tidsrom
 pris_etter_stromstotte = PRISMODUL.pris_etter_stromstotte
+timepriser_fra_dagspriser = PRISMODUL.timepriser_fra_dagspriser
 timepriser_etter_stromstotte = PRISMODUL.timepriser_etter_stromstotte
 velg_time = PRISMODUL.velg_time
 
@@ -88,6 +89,21 @@ class PristimeTest(unittest.TestCase):
         self.assertEqual(len(priser), 24)
         self.assertEqual(priser[0], 0.5)
         self.assertEqual(priser[1:], [1.02] * 23)
+
+    def test_kvarterspriser_blir_24_timepriser(self) -> None:
+        """Fire kvarterspriser skal gjennomsnittberegnes til én timepris."""
+        dagspriser = [1.0, 1.0, 2.0, 2.0] * 24
+
+        priser = timepriser_fra_dagspriser(dagspriser, self.start)
+
+        self.assertEqual(priser, [1.5] * 24)
+
+    def test_ugyldig_dagsliste_gir_ingen_timepriser(self) -> None:
+        """En ufullstendig dagsliste skal ikke gi delvise timepriser."""
+        self.assertEqual(
+            timepriser_fra_dagspriser([1.0] * 95, self.start),
+            [],
+        )
 
     def test_ugyldig_today_gir_ingen_timepriser(self) -> None:
         """En ufullstendig dagsliste skal ikke gi delvise attributtverdier."""
