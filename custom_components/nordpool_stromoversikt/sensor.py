@@ -126,6 +126,7 @@ class NordpoolTimeSensor(NordpoolKildesensor):
         self._attr_available = False
         self._attr_extra_state_attributes = {
             "pris": None,
+            "etter_stotte": None,
             "starttid": None,
             "stopptid": None,
         }
@@ -155,6 +156,7 @@ class NordpoolTimeSensor(NordpoolKildesensor):
         self._attr_native_value = formater_tidsrom(start, stopp)
         self._attr_extra_state_attributes = {
             "pris": pris,
+            "etter_stotte": pris_etter_stromstotte(pris),
             "starttid": start.isoformat(),
             "stopptid": stopp.isoformat(),
         }
@@ -166,6 +168,7 @@ class NordpoolTimeSensor(NordpoolKildesensor):
         self._attr_native_value = None
         self._attr_extra_state_attributes = {
             "pris": None,
+            "etter_stotte": None,
             "starttid": None,
             "stopptid": None,
         }
