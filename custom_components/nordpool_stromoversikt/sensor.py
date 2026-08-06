@@ -258,6 +258,7 @@ class NordpoolIMorgenSensor(NordpoolKildesensor):
         self._attr_native_value: float | None = None
         self._attr_available = False
         self._attr_extra_state_attributes = {
+            "snitt": None,
             "pris": None,
             "stotte": None,
         }
@@ -278,11 +279,14 @@ class NordpoolIMorgenSensor(NordpoolKildesensor):
             self._sett_utilgjengelig()
             return
 
+        stotte = [pris_etter_stromstotte(pris) for pris in priser]
+
         self._attr_available = True
-        self._attr_native_value = round(sum(priser) / len(priser), 2)
+        self._attr_native_value = round(sum(stotte) / len(stotte), 2)
         self._attr_extra_state_attributes = {
+            "snitt": round(sum(priser) / len(priser), 2),
             "pris": priser,
-            "stotte": [pris_etter_stromstotte(pris) for pris in priser],
+            "stotte": stotte,
         }
 
     @callback
@@ -291,6 +295,7 @@ class NordpoolIMorgenSensor(NordpoolKildesensor):
         self._attr_available = False
         self._attr_native_value = None
         self._attr_extra_state_attributes = {
+            "snitt": None,
             "pris": None,
             "stotte": None,
         }
