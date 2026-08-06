@@ -8,7 +8,7 @@ har flere, ber integrasjonen deg velge hvilken som skal brukes.
 
 ## Krav
 
-- Home Assistant 2025.10 eller nyere
+- Home Assistant 2026.8.0 eller nyere
 - Den offisielle Nord Pool-integrasjonen må være installert og konfigurert
 - Minst én Nord Pool-sensor må finnes i Home Assistant
 
@@ -74,9 +74,10 @@ som Nord Pool-prisen.
 
 Sensoren har også attributtene:
 
-- `idag`: 24 timepriser for inneværende dag etter beregnet strømstøtte.
+- `idag`: 23–25 timepriser for inneværende dag etter beregnet strømstøtte,
+  avhengig av om dagen har overgang til eller fra sommertid.
   Nord Pools `today`-verdier samles til hele klokketimer før støtten beregnes.
-- `snittpris`: gjennomsnittet av de 24 prisene i `idag`, avrundet til to
+- `snittpris`: gjennomsnittet av prisene i `idag`, avrundet til to
   desimaler.
 
 ### I morgen
@@ -88,9 +89,10 @@ komplett prisdøgn.
 
 Sensoren har attributtene:
 
-- `pris`: 24 timepriser fra originalsensorens `tomorrow`. Kvarterspriser
-  gjennomsnittberegnes til hele timer.
-- `stotte`: de samme 24 timeprisene etter beregnet strømstøtte.
+- `pris`: 23–25 timepriser fra originalsensorens `tomorrow`, avhengig av om
+  dagen har overgang til eller fra sommertid. Kvarterspriser gjennomsnittberegnes
+  til hele timer.
+- `stotte`: de samme timeprisene etter beregnet strømstøtte.
 
 Hvis Nord Pool ikke er installert, eller ingen Nord Pool-sensor finnes, må du
 installere og konfigurere Nord Pool før du kan fullføre oppsettet.
