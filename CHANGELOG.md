@@ -2,6 +2,16 @@
 
 Alle vesentlige endringer i Nordpool strømoversikt dokumenteres i denne filen.
 
+## 1.1.0 – 2026-08-06
+
+### Endret
+
+- Sensorene kobles direkte til den valgte Nord Pool-enheten i samsvar med
+  enhetsregistermodellen i Home Assistant 2026.8.
+- Eksisterende hjelpeenheter migreres slik at gamle duplikatenheter ryddes opp.
+- Minimum støttet Home Assistant-versjon er oppdatert til `2026.8.0`.
+- Integrasjonsversjonen er oppdatert til `1.1.0`.
+
 ## 1.0.0 – 2026-07-23
 
 ### Lagt til
