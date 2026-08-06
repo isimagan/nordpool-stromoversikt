@@ -82,13 +82,14 @@ Sensoren har også attributtene:
 
 ### I morgen
 
-Sensoren **I morgen** viser gjennomsnittet av morgendagens Nord Pool-priser,
-avrundet til to desimaler og med måleenheten `kr`. Den er bare tilgjengelig
-når originalsensorens `tomorrow_valid` er `true` og `tomorrow` inneholder et
-komplett prisdøgn.
+Sensoren **I morgen** viser gjennomsnittet av morgendagens priser etter beregnet
+strømstøtte, avrundet til to desimaler og med måleenheten `kr`. Den er bare
+tilgjengelig når originalsensorens `tomorrow_valid` er `true` og `tomorrow`
+inneholder et komplett prisdøgn.
 
 Sensoren har attributtene:
 
+- `snitt`: gjennomsnittet av morgendagens ordinære Nord Pool-priser før støtte.
 - `pris`: 23–25 timepriser fra originalsensorens `tomorrow`, avhengig av om
   dagen har overgang til eller fra sommertid. Kvarterspriser gjennomsnittberegnes
   til hele timer.
