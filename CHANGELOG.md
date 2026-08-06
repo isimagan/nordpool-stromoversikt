@@ -2,6 +2,26 @@
 
 Alle vesentlige endringer i Nordpool strømoversikt dokumenteres i denne filen.
 
+## 1.2.0 – 2026-08-06
+
+### Lagt til
+
+- Attributtet `etter_stotte` på sensorene **Billigst time** og
+  **Dyreste time**.
+- Attributtene `idag` og `snittpris` på **Strømstøtte**, med dagens
+  Nord Pool-priser samlet til hele timer og beregnet etter strømstøtte.
+- Sensoren **I morgen**, med morgendagens snittpris som tilstand og
+  attributtene `pris` og `stotte` med timepriser før og etter strømstøtte.
+
+### Rettet
+
+- Døgnprislogikken støtter nå komplette 23-, 24- og 25-timersdøgn ved
+  overgang til og fra sommertid, inkludert 92/96/100 kvartersverdier.
+
+### Endret
+
+- Integrasjonsversjonen er oppdatert til `1.2.0`.
+
 ## 1.1.0 – 2026-08-06
 
 ### Endret
