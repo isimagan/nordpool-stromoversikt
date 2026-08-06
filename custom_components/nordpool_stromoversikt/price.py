@@ -134,6 +134,18 @@ def hele_timer_fra_today(today: Any, nå: datetime) -> list[Pristime]:
     return hele_timer
 
 
+def timepriser_etter_stromstotte(today: Any, nå: datetime) -> list[float]:
+    """Lag 24 timepriser for i dag etter beregnet strømstøtte."""
+    timer = hele_timer_fra_today(today, nå)
+    if len(timer) != 24:
+        return []
+
+    return [
+        pris_etter_stromstotte(pris)
+        for pris, _start, _stopp in timer
+    ]
+
+
 def velg_time(timer: list[Pristime], *, høyeste: bool) -> Pristime | None:
     """Velg første time med lavest eller høyest pris."""
     if not timer:

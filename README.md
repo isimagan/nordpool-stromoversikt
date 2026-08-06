@@ -72,6 +72,13 @@ fra prisen:
 Når prisen er lik eller lavere enn 0,9625 kr/kWh, er sensorverdien den samme
 som Nord Pool-prisen.
 
+Sensoren har også attributtene:
+
+- `idag`: 24 timepriser for inneværende dag etter beregnet strømstøtte.
+  Nord Pools `today`-verdier samles til hele klokketimer før støtten beregnes.
+- `snittpris`: gjennomsnittet av de 24 prisene i `idag`, avrundet til to
+  desimaler.
+
 Hvis Nord Pool ikke er installert, eller ingen Nord Pool-sensor finnes, må du
 installere og konfigurere Nord Pool før du kan fullføre oppsettet.
 
