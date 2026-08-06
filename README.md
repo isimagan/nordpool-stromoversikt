@@ -43,9 +43,10 @@ Hvis Nord Pool leverer priser hvert 15. minutt, samler sensoren de fire
 kvartersprisene som dekker en hel klokktime og beregner et tidsvektet
 gjennomsnitt. Den fungerer også når Nord Pool leverer én pris per time.
 
-Sensoren har tre attributter:
+Sensoren har fire attributter:
 
-- `pris`: prisen for den valgte timen
+- `pris`: prisen for den valgte timen fra Nord Pool
+- `etter_stotte`: prisen for den valgte timen etter beregnet strømstøtte
 - `starttid`: tidspunktet den billigste timen starter
 - `stopptid`: starten på neste time, med sekunder satt til `00`
 
@@ -56,8 +57,8 @@ Hvis flere timer har samme laveste pris, velges den første timen.
 ### Dyreste time
 
 Sensoren **Dyreste time** bruker samme oppsett som **Billigst time**, men viser
-tidsrommet for dagens dyreste hele strømtime. Prisen ligger i attributtet
-`pris`. Hvis flere timer har samme høyeste pris, velges den første.
+tidsrommet for dagens dyreste hele strømtime. Prisen ligger i attributtet `pris`, og prisen etter beregnet strømstøtte ligger i
+`etter_stotte`. Hvis flere timer har samme høyeste pris, velges den første.
 
 ### Strømstøtte
 
