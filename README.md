@@ -117,8 +117,10 @@ linje. Snittprisen vises da som **Kommer**.
 
 I den visuelle veiviseren kan du velge om kortet skal vise dato, snittpris,
 overskrift, graf, forklaring og nåpris. Når grafen vises, kan du i tillegg
-velge markering av gjeldende time og en horisontal snittlinje. Slås grafen av,
-slås også de to grafvalgene av automatisk.
+velge søylene etter strømstøtte, den stiplede linjen uten strømstøtte,
+markering av gjeldende time og en horisontal snittlinje. Skjulte prisserier
+fjernes også fra forklaringen og verktøytipset. Slås grafen av, slås alle fire
+grafvalgene av automatisk, og kortet reduserer høyden til det synlige innholdet.
 
 Kortet kan også legges til med YAML:
 
@@ -130,6 +132,8 @@ show_date: true
 show_mean: true
 show_heading: true
 show_graph: true
+show_bars: true
+show_line: true
 show_now_graph: true
 show_mean_graph: true
 show_description: true
