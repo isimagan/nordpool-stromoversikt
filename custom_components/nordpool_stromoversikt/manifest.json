@@ -4,6 +4,7 @@
   "after_dependencies": ["nordpool"],
   "codeowners": ["@isimagan"],
   "config_flow": true,
+  "dependencies": ["frontend", "http"],
   "documentation": "https://github.com/isimagan/nordpool-stromoversikt",
   "integration_type": "service",
   "iot_class": "calculated",
@@ -11,4 +12,3 @@
   "requirements": [],
   "version": "1.2.2"
 }
-
