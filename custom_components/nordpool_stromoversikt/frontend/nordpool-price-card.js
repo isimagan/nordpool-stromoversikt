@@ -35,28 +35,31 @@ const styles = `
     min-width: 0;
     padding: 20px 18px 15px;
     overflow: hidden;
+    display: flex;
+    flex-direction: column;
   }
 
   .period-switch {
     display: grid;
     grid-template-columns: 1fr 1fr;
-    gap: 3px;
-    margin: 0 3px 18px;
-    padding: 3px;
+    flex: 0 0 auto;
+    gap: 2px;
+    margin: 0 3px 12px;
+    padding: 2px;
     border: 1px solid var(--divider-color);
-    border-radius: 11px;
+    border-radius: 9px;
     background: color-mix(in srgb, var(--primary-text-color) 5%, transparent);
   }
 
   .period-button {
-    min-height: 38px;
-    padding: 7px 12px;
+    min-height: 26px;
+    padding: 3px 10px;
     border: 0;
-    border-radius: 8px;
+    border-radius: 6px;
     background: transparent;
     color: var(--secondary-text-color);
     font: inherit;
-    font-size: 13px;
+    font-size: 12px;
     font-weight: 650;
     cursor: pointer;
     transition: background .15s, color .15s, box-shadow .15s;
@@ -70,6 +73,7 @@ const styles = `
 
   .card-head {
     display: flex;
+    flex: 0 0 auto;
     justify-content: space-between;
     gap: 16px;
     align-items: flex-start;
@@ -108,7 +112,9 @@ const styles = `
 
   .chart-wrap {
     position: relative;
-    height: 330px;
+    flex: 1 1 330px;
+    height: auto;
+    min-height: 190px;
     min-width: 0;
   }
 
@@ -132,6 +138,10 @@ const styles = `
     font-size: 9px;
     font-weight: 700;
     text-anchor: end;
+  }
+  .mean-label-bg {
+    fill: var(--ha-card-background, var(--card-background-color));
+    opacity: .88;
   }
   .axis-label { fill: var(--secondary-text-color); font-size: 10px; }
   .hour-label { fill: var(--secondary-text-color); font-size: 10px; text-anchor: middle; }
@@ -163,6 +173,7 @@ const styles = `
 
   .legend {
     display: flex;
+    flex: 0 0 auto;
     flex-wrap: wrap;
     gap: 18px;
     align-items: center;
@@ -317,6 +328,23 @@ class NordpoolPriceCard extends HTMLElement {
     this._hass = undefined;
     this._config = undefined;
     this._period = "today";
+    this._chartFrame = undefined;
+    this._chartState = undefined;
+    this._resizeObserver = typeof ResizeObserver === "undefined"
+      ? undefined
+      : new ResizeObserver(() => this._scheduleChart());
+  }
+
+  connectedCallback() {
+    this._resizeObserver?.observe(this);
+  }
+
+  disconnectedCallback() {
+    this._resizeObserver?.disconnect();
+    if (this._chartFrame !== undefined && typeof cancelAnimationFrame === "function") {
+      cancelAnimationFrame(this._chartFrame);
+    }
+    this._chartFrame = undefined;
   }
 
   setConfig(config) {
@@ -331,14 +359,14 @@ class NordpoolPriceCard extends HTMLElement {
   }
 
   getCardSize() {
-    return 7;
+    return 9;
   }
 
   getGridOptions() {
     return {
       rows: 7,
       columns: 12,
-      min_rows: 5,
+      min_rows: 7,
       min_columns: 6,
     };
   }
@@ -409,15 +437,36 @@ class NordpoolPriceCard extends HTMLElement {
       }
     }
 
-    if (display.show_graph) this._drawChart(model, display);
+    this._chartState = display.show_graph ? { model, display } : undefined;
+    this._scheduleChart();
+  }
+
+  _scheduleChart() {
+    if (!this._chartState || !this.shadowRoot.querySelector("svg")) return;
+    if (this._chartFrame !== undefined && typeof cancelAnimationFrame === "function") {
+      cancelAnimationFrame(this._chartFrame);
+    }
+    if (typeof requestAnimationFrame !== "function") {
+      this._drawChart(this._chartState.model, this._chartState.display);
+      return;
+    }
+    this._chartFrame = requestAnimationFrame(() => {
+      this._chartFrame = undefined;
+      if (this._chartState) {
+        this._drawChart(this._chartState.model, this._chartState.display);
+      }
+    });
   }
 
   _drawChart(model, display) {
     const svg = this.shadowRoot.querySelector("svg");
     const tooltip = this.shadowRoot.querySelector(".tooltip");
-    const width = 720;
-    const height = 330;
-    const margin = { top: 18, right: 10, bottom: 35, left: 43 };
+    if (!svg || !tooltip) return;
+    svg.replaceChildren();
+    const bounds = svg.getBoundingClientRect();
+    const width = Math.max(Math.round(bounds.width), 280);
+    const height = Math.max(Math.round(bounds.height), 180);
+    const margin = { top: 18, right: 6, bottom: 30, left: 38 };
     const innerWidth = width - margin.left - margin.right;
     const innerHeight = height - margin.top - margin.bottom;
     const values = model.available ? [...model.original, ...model.supported] : [0, 2];
@@ -436,7 +485,7 @@ class NordpoolPriceCard extends HTMLElement {
     const zeroY = y(Math.min(yMax, Math.max(yMin, 0)));
 
     svg.setAttribute("viewBox", `0 0 ${width} ${height}`);
-    svg.setAttribute("preserveAspectRatio", "none");
+    svg.setAttribute("preserveAspectRatio", "xMidYMid meet");
 
     for (let index = 0; index <= ticks; index += 1) {
       const value = yMin + range * index / ticks;
@@ -479,9 +528,17 @@ class NordpoolPriceCard extends HTMLElement {
         y2: meanY,
         class: "mean-line",
       }));
+      svg.append(svgNode("rect", {
+        x: width - margin.right - 37,
+        y: meanY - 16,
+        width: 37,
+        height: 14,
+        rx: 3,
+        class: "mean-label-bg",
+      }));
       const meanLabel = svgNode("text", {
         x: width - margin.right - 3,
-        y: meanY - 5,
+        y: meanY - 6,
         class: "mean-label",
       });
       meanLabel.textContent = "SNITT";
@@ -570,41 +627,18 @@ class NordpoolPriceCardEditor extends HTMLElement {
   _render() {
     if (!this._hass) return;
 
+    if (!customElements.get("ha-entity-picker")) {
+      this.shadowRoot.innerHTML = `<p class="loading">Laster sensorvelger …</p>`;
+      customElements.whenDefined("ha-entity-picker").then(() => this._render());
+      return;
+    }
+
     this.shadowRoot.innerHTML = `
       <style>
         :host { display: block; padding: 8px 0; }
-        .field-label {
-          display: block;
-          margin-bottom: 7px;
-          color: var(--secondary-text-color);
-          font-size: 12px;
-          font-weight: 650;
-        }
-        .field-label .required,
-        .field-label .optional {
-          margin-left: 5px;
-          font-size: 11px;
-          font-weight: 600;
-        }
-        .field-label .required { color: var(--error-color); }
-        .field-label .optional { color: var(--secondary-text-color); }
         .sensor-field + .sensor-field { margin-top: 16px; }
-        select {
-          box-sizing: border-box;
-          width: 100%;
-          min-height: 48px;
-          padding: 0 42px 0 13px;
-          border: 1px solid var(--input-outlined-idle-border-color, var(--divider-color));
-          border-radius: var(--ha-card-border-radius, 10px);
-          background: var(--card-background-color, var(--secondary-background-color));
-          color: var(--primary-text-color);
-          font: inherit;
-          outline: none;
-        }
-        select:focus {
-          border-color: var(--primary-color);
-          box-shadow: 0 0 0 2px color-mix(in srgb, var(--primary-color) 20%, transparent);
-        }
+        ha-entity-picker { display: block; width: 100%; }
+        .loading,
         .empty {
           margin: 8px 0 0;
           color: var(--secondary-text-color);
@@ -640,76 +674,58 @@ class NordpoolPriceCardEditor extends HTMLElement {
           accent-color: var(--primary-color);
         }
       </style>
-      <div class="sensor-field">
-        <label class="field-label" for="entity">Strømstøttesensor <span class="required">Påkrevd</span></label>
-        <select id="entity" required>
-          <option value="">Velg sensor</option>
-        </select>
-      </div>
-      <div class="sensor-field">
-        <label class="field-label" for="tomorrow_entity">I morgen-sensor <span class="optional">Valgfri</span></label>
-        <select id="tomorrow_entity">
-          <option value="">Ingen sensor valgt</option>
-        </select>
-      </div>
+      <div class="sensor-field" id="today-field"></div>
+      <div class="sensor-field" id="tomorrow-field"></div>
       <fieldset>
         <legend>Vis i kortet</legend>
         <div class="display-options"></div>
       </fieldset>
     `;
 
-    const todaySelect = this.shadowRoot.querySelector("#entity");
-    const tomorrowSelect = this.shadowRoot.querySelector("#tomorrow_entity");
     const stateEntries = Object.entries(this._hass.states);
-    const todayCompatible = stateEntries
+    const todayEntities = stateEntries
       .filter(([, stateObj]) => isTodayState(stateObj))
-      .sort(([left], [right]) => left.localeCompare(right, "nb"));
-    const tomorrowCompatible = stateEntries
+      .map(([entityId]) => entityId)
+      .sort((left, right) => left.localeCompare(right, "nb"));
+    const tomorrowEntities = stateEntries
       .filter(([, stateObj]) => isTomorrowState(stateObj))
-      .sort(([left], [right]) => left.localeCompare(right, "nb"));
+      .map(([entityId]) => entityId)
+      .sort((left, right) => left.localeCompare(right, "nb"));
 
-    for (const [entityId, stateObj] of todayCompatible) {
-      const option = document.createElement("option");
-      option.value = entityId;
-      option.textContent = stateObj.attributes.friendly_name || entityId;
-      option.selected = entityId === this._config.entity;
-      todaySelect.append(option);
+    if (this._config.entity && !todayEntities.includes(this._config.entity)) {
+      todayEntities.push(this._config.entity);
     }
-
-    if (this._config.entity && !todayCompatible.some(([entityId]) => entityId === this._config.entity)) {
-      const option = document.createElement("option");
-      option.value = this._config.entity;
-      option.textContent = this._config.entity;
-      option.selected = true;
-      todaySelect.append(option);
-    }
-
-    for (const [entityId, stateObj] of tomorrowCompatible) {
-      const option = document.createElement("option");
-      option.value = entityId;
-      option.textContent = stateObj.attributes.friendly_name || entityId;
-      option.selected = entityId === this._config.tomorrow_entity;
-      tomorrowSelect.append(option);
-    }
-
     if (this._config.tomorrow_entity
-      && !tomorrowCompatible.some(([entityId]) => entityId === this._config.tomorrow_entity)) {
-      const option = document.createElement("option");
-      option.value = this._config.tomorrow_entity;
-      option.textContent = this._config.tomorrow_entity;
-      option.selected = true;
-      tomorrowSelect.append(option);
+      && !tomorrowEntities.includes(this._config.tomorrow_entity)) {
+      tomorrowEntities.push(this._config.tomorrow_entity);
     }
 
-    if (!todayCompatible.length) {
+    const todayPicker = document.createElement("ha-entity-picker");
+    todayPicker.value = this._config.entity || "";
+    todayPicker.label = "Strømstøttesensor";
+    todayPicker.helper = "Påkrevd · brukes til prisene for i dag";
+    todayPicker.required = true;
+    todayPicker.includeDomains = ["sensor"];
+    todayPicker.includeEntities = todayEntities;
+    this.shadowRoot.querySelector("#today-field").append(todayPicker);
+
+    const tomorrowPicker = document.createElement("ha-entity-picker");
+    tomorrowPicker.value = this._config.tomorrow_entity || "";
+    tomorrowPicker.label = "I morgen-sensor";
+    tomorrowPicker.helper = "Valgfri · viser valget mellom I dag og I morgen";
+    tomorrowPicker.includeDomains = ["sensor"];
+    tomorrowPicker.includeEntities = tomorrowEntities;
+    this.shadowRoot.querySelector("#tomorrow-field").append(tomorrowPicker);
+
+    if (!todayEntities.length) {
       const message = document.createElement("p");
       message.className = "empty";
       message.textContent = "Ingen kompatibel strømstøttesensor ble funnet.";
-      todaySelect.closest(".sensor-field").append(message);
+      this.shadowRoot.querySelector("#today-field").append(message);
     }
 
-    todaySelect.addEventListener("change", (event) => {
-      const entity = event.target.value;
+    todayPicker.addEventListener("value-changed", (event) => {
+      const entity = event.detail.value;
       const config = { ...this._config };
       if (entity) config.entity = entity;
       else delete config.entity;
@@ -721,8 +737,8 @@ class NordpoolPriceCardEditor extends HTMLElement {
       }));
     });
 
-    tomorrowSelect.addEventListener("change", (event) => {
-      const tomorrowEntity = event.target.value;
+    tomorrowPicker.addEventListener("value-changed", (event) => {
+      const tomorrowEntity = event.detail.value;
       const config = { ...this._config };
       if (tomorrowEntity) config.tomorrow_entity = tomorrowEntity;
       else delete config.tomorrow_entity;
