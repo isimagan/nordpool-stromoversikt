@@ -4,8 +4,16 @@ Alle vesentlige endringer i Nordpool strømoversikt dokumenteres i denne filen.
 
 ## Neste versjon
 
+### Lagt til
+
+- Kortveiviseren kan skjule søylene etter strømstøtte og den stiplede linjen
+  uten strømstøtte hver for seg. Skjulte prisserier fjernes også fra
+  tegnforklaringen og verktøytipset.
+
 ### Rettet
 
+- Priskortet reduserer høyden når grafen skjules, i stedet for å beholde tom
+  dashboardplass.
 - Priskortet tilpasser grafhøyden til tilgjengelig dashboardplass, slik at
   klokkeslett, tegnforklaring og nåpris ikke blir beskåret.
 - Grafen bruker kortets faktiske mål, slik at akse- og graftekst ikke strekkes

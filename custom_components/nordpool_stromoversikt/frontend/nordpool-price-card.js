@@ -9,6 +9,8 @@ const DISPLAY_OPTIONS = [
   ["show_mean", "Vis snittpris"],
   ["show_heading", "Vis overskrift"],
   ["show_graph", "Vis graf"],
+  ["show_bars", "Vis søyler"],
+  ["show_line", "Vis stiplet linje"],
   ["show_now_graph", "Marker gjeldende time i grafen"],
   ["show_mean_graph", "Vis snittpris i grafen"],
   ["show_description", "Vis forklaring"],
@@ -17,7 +19,12 @@ const DISPLAY_OPTIONS = [
 const DISPLAY_DEFAULTS = Object.fromEntries(
   DISPLAY_OPTIONS.map(([key]) => [key, true]),
 );
-const GRAPH_SUB_OPTIONS = new Set(["show_now_graph", "show_mean_graph"]);
+const GRAPH_SUB_OPTIONS = new Set([
+  "show_bars",
+  "show_line",
+  "show_now_graph",
+  "show_mean_graph",
+]);
 
 const styles = `
   :host {
@@ -273,9 +280,29 @@ function priceText(value) {
 }
 
 function displayConfig(config = {}) {
-  return Object.fromEntries(
+  const display = Object.fromEntries(
     Object.keys(DISPLAY_DEFAULTS).map((key) => [key, config[key] !== false]),
   );
+  if (!display.show_graph) {
+    for (const key of GRAPH_SUB_OPTIONS) display[key] = false;
+  }
+  return display;
+}
+
+function cardLayout(config = {}) {
+  const display = displayConfig(config);
+  if (display.show_graph) return { cardSize: 9, gridRows: 7 };
+
+  const showHead = display.show_date || display.show_heading || display.show_mean;
+  const showDescription = display.show_description
+    && (display.show_bars || display.show_line);
+  const showFooter = showDescription || display.show_now_price;
+  const compactRows = 1
+    + (config.tomorrow_entity ? 1 : 0)
+    + (showHead ? 1 : 0)
+    + (showFooter ? 1 : 0);
+
+  return { cardSize: compactRows, gridRows: compactRows };
 }
 
 function sensorModel(stateObj, isTomorrow = false) {
@@ -359,14 +386,15 @@ class NordpoolPriceCard extends HTMLElement {
   }
 
   getCardSize() {
-    return 9;
+    return cardLayout(this._config).cardSize;
   }
 
   getGridOptions() {
+    const { gridRows } = cardLayout(this._config);
     return {
-      rows: 7,
+      rows: gridRows,
       columns: 12,
-      min_rows: 7,
+      min_rows: gridRows,
       min_columns: 6,
     };
   }
@@ -386,7 +414,9 @@ class NordpoolPriceCard extends HTMLElement {
     const model = sensorModel(stateObj, isTomorrow);
     const display = displayConfig(this._config);
     const showHead = display.show_date || display.show_heading || display.show_mean;
-    const showLegend = display.show_description || display.show_now_price;
+    const showDescription = display.show_description
+      && (display.show_bars || display.show_line);
+    const showFooter = showDescription || display.show_now_price;
 
     this.shadowRoot.innerHTML = `
       <style>${styles}</style>
@@ -408,11 +438,13 @@ class NordpoolPriceCard extends HTMLElement {
         ${display.show_graph ? `<div class="chart-wrap">
           <svg role="img" aria-label="Pris time for time"></svg>
         </div>` : ""}
-        ${showLegend ? `<div class="legend">
-          ${display.show_description ? `
-            <span class="legend-item"><i class="legend-bar"></i>Etter strømstøtte</span>
-            <span class="legend-item"><i class="legend-line"></i>Uten strømstøtte</span>
-          ` : ""}
+        ${showFooter ? `<div class="legend">
+          ${showDescription && display.show_bars
+            ? `<span class="legend-item"><i class="legend-bar"></i>Etter strømstøtte</span>`
+            : ""}
+          ${showDescription && display.show_line
+            ? `<span class="legend-item"><i class="legend-line"></i>Uten strømstøtte</span>`
+            : ""}
           ${display.show_now_price ? `<span class="now-price"></span>` : ""}
         </div>` : ""}
       </ha-card>
@@ -469,7 +501,13 @@ class NordpoolPriceCard extends HTMLElement {
     const margin = { top: 18, right: 6, bottom: 30, left: 38 };
     const innerWidth = width - margin.left - margin.right;
     const innerHeight = height - margin.top - margin.bottom;
-    const values = model.available ? [...model.original, ...model.supported] : [0, 2];
+    const visibleValues = [];
+    if (display.show_bars) visibleValues.push(...model.supported);
+    if (display.show_line) visibleValues.push(...model.original);
+    if (display.show_mean_graph && Number.isFinite(model.average)) {
+      visibleValues.push(model.average);
+    }
+    const values = model.available && visibleValues.length ? visibleValues : [0, 2];
     const minimum = Math.min(0, ...values);
     const maximum = Math.max(0, ...values);
     const padding = Math.max((maximum - minimum) * .08, .12);
@@ -545,33 +583,39 @@ class NordpoolPriceCard extends HTMLElement {
       svg.append(meanLabel);
     }
 
-    model.supported.forEach((value, index) => {
-      const valueY = y(value);
-      const rect = svgNode("rect", {
-        x: x(index) - barWidth / 2,
-        y: Math.min(valueY, zeroY),
-        width: barWidth,
-        height: Math.max(Math.abs(zeroY - valueY), 1),
-        rx: 2.5,
-        class: `bar${display.show_now_graph && index === model.currentHour ? " current" : ""}`,
-      });
-      svg.append(rect);
-
-      if (display.show_now_graph && index === model.currentHour) {
-        const now = svgNode("text", {
-          x: x(index),
-          y: margin.top + 10,
-          class: "now-label",
+    if (display.show_bars) {
+      model.supported.forEach((value, index) => {
+        const valueY = y(value);
+        const rect = svgNode("rect", {
+          x: x(index) - barWidth / 2,
+          y: Math.min(valueY, zeroY),
+          width: barWidth,
+          height: Math.max(Math.abs(zeroY - valueY), 1),
+          rx: 2.5,
+          class: `bar${display.show_now_graph && index === model.currentHour ? " current" : ""}`,
         });
-        now.textContent = "NÅ";
-        svg.append(now);
-      }
-    });
+        svg.append(rect);
+      });
+    }
 
-    const linePath = model.original
-      .map((value, index) => `${index ? "L" : "M"} ${x(index)} ${y(value)}`)
-      .join(" ");
-    svg.append(svgNode("path", { d: linePath, class: "price-line" }));
+    if (display.show_now_graph && model.currentHour !== null) {
+      const now = svgNode("text", {
+        x: x(model.currentHour),
+        y: margin.top + 10,
+        class: "now-label",
+      });
+      now.textContent = "NÅ";
+      svg.append(now);
+    }
+
+    if (display.show_line) {
+      const linePath = model.original
+        .map((value, index) => `${index ? "L" : "M"} ${x(index)} ${y(value)}`)
+        .join(" ");
+      svg.append(svgNode("path", { d: linePath, class: "price-line" }));
+    }
+
+    if (!display.show_bars && !display.show_line) return;
 
     model.original.forEach((value, index) => {
       const hit = svgNode("rect", {
@@ -594,14 +638,19 @@ class NordpoolPriceCard extends HTMLElement {
         const stop = String((index + 1) % 24).padStart(2, "0");
         tooltip.innerHTML = `
           <strong>${start}:00–${stop}:00</strong>
-          <span class="tooltip-row">Etter støtte <b>${priceText(model.supported[index])}</b></span>
-          <span class="tooltip-row">Uten støtte <b>${priceText(value)}</b></span>`;
+          ${display.show_bars
+            ? `<span class="tooltip-row">Etter støtte <b>${priceText(model.supported[index])}</b></span>`
+            : ""}
+          ${display.show_line
+            ? `<span class="tooltip-row">Uten støtte <b>${priceText(value)}</b></span>`
+            : ""}`;
         tooltip.style.left = `${event.clientX}px`;
         tooltip.style.top = `${event.clientY}px`;
         tooltip.classList.add("visible");
       });
       hit.addEventListener("pointerleave", () => tooltip.classList.remove("visible"));
-      svg.append(hit, dot);
+      svg.append(hit);
+      if (display.show_line) svg.append(dot);
     });
   }
 }
@@ -773,8 +822,7 @@ class NordpoolPriceCardEditor extends HTMLElement {
       checkbox.addEventListener("change", () => {
         const config = { ...this._config, [key]: checkbox.checked };
         if (key === "show_graph" && !checkbox.checked) {
-          config.show_now_graph = false;
-          config.show_mean_graph = false;
+          for (const graphKey of GRAPH_SUB_OPTIONS) config[graphKey] = false;
         }
         this._config = config;
         this.dispatchEvent(new CustomEvent("config-changed", {
