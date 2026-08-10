@@ -37,6 +37,37 @@ const styles = `
     overflow: hidden;
   }
 
+  .period-switch {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 3px;
+    margin: 0 3px 18px;
+    padding: 3px;
+    border: 1px solid var(--divider-color);
+    border-radius: 11px;
+    background: color-mix(in srgb, var(--primary-text-color) 5%, transparent);
+  }
+
+  .period-button {
+    min-height: 38px;
+    padding: 7px 12px;
+    border: 0;
+    border-radius: 8px;
+    background: transparent;
+    color: var(--secondary-text-color);
+    font: inherit;
+    font-size: 13px;
+    font-weight: 650;
+    cursor: pointer;
+    transition: background .15s, color .15s, box-shadow .15s;
+  }
+
+  .period-button.active {
+    background: var(--secondary-background-color);
+    color: var(--primary-text-color);
+    box-shadow: 0 1px 5px rgba(0, 0, 0, .24);
+  }
+
   .card-head {
     display: flex;
     justify-content: space-between;
@@ -197,11 +228,17 @@ function numberList(value) {
   return numbers.every(Number.isFinite) ? numbers : [];
 }
 
-function isCompatibleState(stateObj) {
+function hasAttributes(stateObj, names) {
   const attrs = stateObj?.attributes ?? {};
-  const has = (name) => Object.prototype.hasOwnProperty.call(attrs, name);
-  return (has("idag") && has("original") && has("snittpris"))
-    || (has("stotte") && has("pris") && has("snitt"));
+  return names.every((name) => Object.prototype.hasOwnProperty.call(attrs, name));
+}
+
+function isTodayState(stateObj) {
+  return hasAttributes(stateObj, ["idag", "original", "snittpris"]);
+}
+
+function isTomorrowState(stateObj) {
+  return hasAttributes(stateObj, ["stotte", "pris", "snitt"]);
 }
 
 function capitalize(value) {
@@ -230,9 +267,8 @@ function displayConfig(config = {}) {
   );
 }
 
-function sensorModel(stateObj) {
+function sensorModel(stateObj, isTomorrow = false) {
   const attrs = stateObj?.attributes ?? {};
-  const isTomorrow = Array.isArray(attrs.stotte) || Array.isArray(attrs.pris);
   const supported = numberList(isTomorrow ? attrs.stotte : attrs.idag);
   const original = numberList(isTomorrow ? attrs.pris : attrs.original);
   const validLength = supported.length >= 23 && supported.length <= 25;
@@ -271,7 +307,7 @@ class NordpoolPriceCard extends HTMLElement {
 
   static getStubConfig(hass) {
     const entity = Object.keys(hass?.states ?? {})
-      .find((entityId) => isCompatibleState(hass.states[entityId]));
+      .find((entityId) => isTodayState(hass.states[entityId]));
     return entity ? { entity, ...DISPLAY_DEFAULTS } : { ...DISPLAY_DEFAULTS };
   }
 
@@ -280,10 +316,12 @@ class NordpoolPriceCard extends HTMLElement {
     this.attachShadow({ mode: "open" });
     this._hass = undefined;
     this._config = undefined;
+    this._period = "today";
   }
 
   setConfig(config) {
     this._config = { ...config };
+    if (!this._config.tomorrow_entity) this._period = "today";
     this._render();
   }
 
@@ -308,10 +346,16 @@ class NordpoolPriceCard extends HTMLElement {
   _render() {
     if (!this._config || !this._hass) return;
 
-    const stateObj = this._config.entity
-      ? this._hass.states[this._config.entity]
+    const hasTomorrow = Boolean(this._config.tomorrow_entity);
+    if (!hasTomorrow) this._period = "today";
+    const isTomorrow = this._period === "tomorrow";
+    const activeEntity = isTomorrow
+      ? this._config.tomorrow_entity
+      : this._config.entity;
+    const stateObj = activeEntity
+      ? this._hass.states[activeEntity]
       : undefined;
-    const model = sensorModel(stateObj);
+    const model = sensorModel(stateObj, isTomorrow);
     const display = displayConfig(this._config);
     const showHead = display.show_date || display.show_heading || display.show_mean;
     const showLegend = display.show_description || display.show_now_price;
@@ -319,6 +363,10 @@ class NordpoolPriceCard extends HTMLElement {
     this.shadowRoot.innerHTML = `
       <style>${styles}</style>
       <ha-card aria-label="Nordpool priskort">
+        ${hasTomorrow ? `<nav class="period-switch" aria-label="Velg prisdag">
+          <button class="period-button${isTomorrow ? "" : " active"}" type="button" data-period="today" aria-pressed="${!isTomorrow}">I dag</button>
+          <button class="period-button${isTomorrow ? " active" : ""}" type="button" data-period="tomorrow" aria-pressed="${isTomorrow}">I morgen</button>
+        </nav>` : ""}
         ${showHead ? `<div class="card-head">
           ${display.show_date || display.show_heading ? `<div>
             ${display.show_date ? `<div class="eyebrow">${model.date}</div>` : ""}
@@ -342,6 +390,13 @@ class NordpoolPriceCard extends HTMLElement {
       </ha-card>
       <div class="tooltip"></div>
     `;
+
+    for (const button of this.shadowRoot.querySelectorAll(".period-button")) {
+      button.addEventListener("click", () => {
+        this._period = button.dataset.period;
+        this._render();
+      });
+    }
 
     const detail = this.shadowRoot.querySelector(".now-price");
     if (detail) {
@@ -525,6 +580,15 @@ class NordpoolPriceCardEditor extends HTMLElement {
           font-size: 12px;
           font-weight: 650;
         }
+        .field-label .required,
+        .field-label .optional {
+          margin-left: 5px;
+          font-size: 11px;
+          font-weight: 600;
+        }
+        .field-label .required { color: var(--error-color); }
+        .field-label .optional { color: var(--secondary-text-color); }
+        .sensor-field + .sensor-field { margin-top: 16px; }
         select {
           box-sizing: border-box;
           width: 100%;
@@ -576,49 +640,92 @@ class NordpoolPriceCardEditor extends HTMLElement {
           accent-color: var(--primary-color);
         }
       </style>
-      <label class="field-label" for="entity">Strømstøttesensor</label>
-      <select id="entity">
-        <option value="">Velg sensor</option>
-      </select>
+      <div class="sensor-field">
+        <label class="field-label" for="entity">Strømstøttesensor <span class="required">Påkrevd</span></label>
+        <select id="entity" required>
+          <option value="">Velg sensor</option>
+        </select>
+      </div>
+      <div class="sensor-field">
+        <label class="field-label" for="tomorrow_entity">I morgen-sensor <span class="optional">Valgfri</span></label>
+        <select id="tomorrow_entity">
+          <option value="">Ingen sensor valgt</option>
+        </select>
+      </div>
       <fieldset>
         <legend>Vis i kortet</legend>
         <div class="display-options"></div>
       </fieldset>
     `;
 
-    const select = this.shadowRoot.querySelector("select");
-    const compatible = Object.entries(this._hass.states)
-      .filter(([, stateObj]) => isCompatibleState(stateObj))
+    const todaySelect = this.shadowRoot.querySelector("#entity");
+    const tomorrowSelect = this.shadowRoot.querySelector("#tomorrow_entity");
+    const stateEntries = Object.entries(this._hass.states);
+    const todayCompatible = stateEntries
+      .filter(([, stateObj]) => isTodayState(stateObj))
+      .sort(([left], [right]) => left.localeCompare(right, "nb"));
+    const tomorrowCompatible = stateEntries
+      .filter(([, stateObj]) => isTomorrowState(stateObj))
       .sort(([left], [right]) => left.localeCompare(right, "nb"));
 
-    for (const [entityId, stateObj] of compatible) {
+    for (const [entityId, stateObj] of todayCompatible) {
       const option = document.createElement("option");
       option.value = entityId;
       option.textContent = stateObj.attributes.friendly_name || entityId;
       option.selected = entityId === this._config.entity;
-      select.append(option);
+      todaySelect.append(option);
     }
 
-    if (this._config.entity && !compatible.some(([entityId]) => entityId === this._config.entity)) {
+    if (this._config.entity && !todayCompatible.some(([entityId]) => entityId === this._config.entity)) {
       const option = document.createElement("option");
       option.value = this._config.entity;
       option.textContent = this._config.entity;
       option.selected = true;
-      select.append(option);
+      todaySelect.append(option);
     }
 
-    if (!compatible.length) {
+    for (const [entityId, stateObj] of tomorrowCompatible) {
+      const option = document.createElement("option");
+      option.value = entityId;
+      option.textContent = stateObj.attributes.friendly_name || entityId;
+      option.selected = entityId === this._config.tomorrow_entity;
+      tomorrowSelect.append(option);
+    }
+
+    if (this._config.tomorrow_entity
+      && !tomorrowCompatible.some(([entityId]) => entityId === this._config.tomorrow_entity)) {
+      const option = document.createElement("option");
+      option.value = this._config.tomorrow_entity;
+      option.textContent = this._config.tomorrow_entity;
+      option.selected = true;
+      tomorrowSelect.append(option);
+    }
+
+    if (!todayCompatible.length) {
       const message = document.createElement("p");
       message.className = "empty";
-      message.textContent = "Ingen kompatible strømsensorer ble funnet.";
-      this.shadowRoot.append(message);
+      message.textContent = "Ingen kompatibel strømstøttesensor ble funnet.";
+      todaySelect.closest(".sensor-field").append(message);
     }
 
-    select.addEventListener("change", (event) => {
+    todaySelect.addEventListener("change", (event) => {
       const entity = event.target.value;
       const config = { ...this._config };
       if (entity) config.entity = entity;
       else delete config.entity;
+      this._config = config;
+      this.dispatchEvent(new CustomEvent("config-changed", {
+        detail: { config },
+        bubbles: true,
+        composed: true,
+      }));
+    });
+
+    tomorrowSelect.addEventListener("change", (event) => {
+      const tomorrowEntity = event.target.value;
+      const config = { ...this._config };
+      if (tomorrowEntity) config.tomorrow_entity = tomorrowEntity;
+      else delete config.tomorrow_entity;
       this._config = config;
       this.dispatchEvent(new CustomEvent("config-changed", {
         detail: { config },
@@ -683,7 +790,7 @@ if (!window.customCards.some((card) => card.type === CARD_TYPE)) {
     documentationURL: CARD_DOCS,
     getEntitySuggestion: (hass, entityId) => {
       const stateObj = hass.states[entityId];
-      return isCompatibleState(stateObj)
+      return isTodayState(stateObj)
         ? { config: { type: `custom:${CARD_TYPE}`, entity: entityId, ...DISPLAY_DEFAULTS } }
         : null;
     },

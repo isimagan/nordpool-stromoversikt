@@ -8,8 +8,9 @@ Alle vesentlige endringer i Nordpool strømoversikt dokumenteres i denne filen.
 
 - Kortet **Nordpool priskort**, med timepriser etter strømstøtte som søyler og
   ordinære Nord Pool-priser som en stiplet linje.
-- Visuell kortveiviser for valg av en kompatibel strømstøttesensor, inkludert
-  sensorene **Strømstøtte** og **I morgen**.
+- Visuell kortveiviser med obligatorisk **Strømstøttesensor** og valgfri
+  **I morgen-sensor**. Når begge er valgt, kan kortet bytte mellom dagene med
+  knappene **I dag** og **I morgen**.
 - Egen utilgjengelig-tilstand som beholder aksene og viser **Kommer** i stedet
   for snittpris.
 - Åtte visningsvalg i kortveiviseren for dato, snittpris, overskrift, graf,
