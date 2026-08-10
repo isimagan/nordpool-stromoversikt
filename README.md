@@ -96,6 +96,49 @@ Sensoren har attributtene:
   til hele timer.
 - `stotte`: de samme timeprisene etter beregnet strømstøtte.
 
+## Nordpool priskort
+
+Integrasjonen legger automatisk til kortet **Nordpool priskort** i
+kortvelgeren for dashbord. Kortet viser prisen etter strømstøtte som søyler og
+den ordinære Nord Pool-prisen som en stiplet linje.
+
+I kortets visuelle veiviser er **Strømstøttesensor** påkrevd og brukes alltid
+til dagens priser. **I morgen-sensor** er valgfri. Når den velges, vises
+knappene **I dag** og **I morgen** øverst i kortet, slik at begge prisdøgn kan
+vises i samme kort.
+
+- **Strømstøttesensor** bruker attributtene `idag` og `original` og markerer
+  gjeldende time.
+- Den valgfrie **I morgen-sensoren** bruker attributtene `stotte` og `pris`.
+
+Når sensoren er utilgjengelig, beholder kortet x- og y-aksene uten søyler eller
+linje. Snittprisen vises da som **Kommer**.
+
+I den visuelle veiviseren kan du velge om kortet skal vise dato, snittpris,
+overskrift, graf, forklaring og nåpris. Når grafen vises, kan du i tillegg
+velge markering av gjeldende time og en horisontal snittlinje. Slås grafen av,
+slås også de to grafvalgene av automatisk.
+
+Kortet kan også legges til med YAML:
+
+```yaml
+type: custom:nordpool-price-card
+entity: sensor.nordpool_stromstotte
+tomorrow_entity: sensor.nordpool_i_morgen
+show_date: true
+show_mean: true
+show_heading: true
+show_graph: true
+show_now_graph: true
+show_mean_graph: true
+show_description: true
+show_now_price: true
+```
+
+Alle visningsvalgene er `true` som standard og kan utelates fra YAML dersom
+standardvisningen skal brukes. `tomorrow_entity` kan utelates; da viser kortet
+bare dagens priser og dagsknappene skjules.
+
 Hvis Nord Pool ikke er installert, eller ingen Nord Pool-sensor finnes, må du
 installere og konfigurere Nord Pool før du kan fullføre oppsettet.
 
