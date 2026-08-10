@@ -4,6 +4,20 @@ const CARD_DOCS = "https://github.com/isimagan/nordpool-stromoversikt#nordpool-p
 
 const SVG_NS = "http://www.w3.org/2000/svg";
 const UNAVAILABLE_STATES = new Set(["unknown", "unavailable", "none", ""]);
+const DISPLAY_OPTIONS = [
+  ["show_date", "Vis dato"],
+  ["show_mean", "Vis snittpris"],
+  ["show_heading", "Vis overskrift"],
+  ["show_graph", "Vis graf"],
+  ["show_now_graph", "Marker gjeldende time i grafen"],
+  ["show_mean_graph", "Vis snittpris i grafen"],
+  ["show_description", "Vis forklaring"],
+  ["show_now_price", "Vis nåpris"],
+];
+const DISPLAY_DEFAULTS = Object.fromEntries(
+  DISPLAY_OPTIONS.map(([key]) => [key, true]),
+);
+const GRAPH_SUB_OPTIONS = new Set(["show_now_graph", "show_mean_graph"]);
 
 const styles = `
   :host {
@@ -48,6 +62,7 @@ const styles = `
   }
 
   .average {
+    margin-left: auto;
     text-align: right;
     white-space: nowrap;
   }
@@ -75,6 +90,18 @@ const styles = `
 
   .grid-line { stroke: var(--divider-color); stroke-width: 1; }
   .zero-line { stroke: var(--secondary-text-color); stroke-width: 1; opacity: .45; }
+  .mean-line {
+    stroke: var(--nordpool-current-color);
+    stroke-width: 1.5;
+    stroke-dasharray: 3 4;
+    opacity: .9;
+  }
+  .mean-label {
+    fill: var(--nordpool-current-color);
+    font-size: 9px;
+    font-weight: 700;
+    text-anchor: end;
+  }
   .axis-label { fill: var(--secondary-text-color); font-size: 10px; }
   .hour-label { fill: var(--secondary-text-color); font-size: 10px; text-anchor: middle; }
   .bar { fill: var(--nordpool-bar-color); opacity: .82; transition: opacity .15s, filter .15s; }
@@ -197,6 +224,12 @@ function priceText(value) {
   })} kr`;
 }
 
+function displayConfig(config = {}) {
+  return Object.fromEntries(
+    Object.keys(DISPLAY_DEFAULTS).map((key) => [key, config[key] !== false]),
+  );
+}
+
 function sensorModel(stateObj) {
   const attrs = stateObj?.attributes ?? {};
   const isTomorrow = Array.isArray(attrs.stotte) || Array.isArray(attrs.pris);
@@ -239,7 +272,7 @@ class NordpoolPriceCard extends HTMLElement {
   static getStubConfig(hass) {
     const entity = Object.keys(hass?.states ?? {})
       .find((entityId) => isCompatibleState(hass.states[entityId]));
-    return entity ? { entity } : {};
+    return entity ? { entity, ...DISPLAY_DEFAULTS } : { ...DISPLAY_DEFAULTS };
   }
 
   constructor() {
@@ -279,45 +312,52 @@ class NordpoolPriceCard extends HTMLElement {
       ? this._hass.states[this._config.entity]
       : undefined;
     const model = sensorModel(stateObj);
+    const display = displayConfig(this._config);
+    const showHead = display.show_date || display.show_heading || display.show_mean;
+    const showLegend = display.show_description || display.show_now_price;
 
     this.shadowRoot.innerHTML = `
       <style>${styles}</style>
       <ha-card aria-label="Nordpool priskort">
-        <div class="card-head">
-          <div>
-            <div class="eyebrow">${model.date}</div>
-            <h2>${model.title}</h2>
-          </div>
-          <div class="average">
+        ${showHead ? `<div class="card-head">
+          ${display.show_date || display.show_heading ? `<div>
+            ${display.show_date ? `<div class="eyebrow">${model.date}</div>` : ""}
+            ${display.show_heading ? `<h2>${model.title}</h2>` : ""}
+          </div>` : ""}
+          ${display.show_mean ? `<div class="average">
             <span class="eyebrow">Snitt etter støtte</span>
             <strong>${model.available ? priceText(model.average) : "Kommer"}</strong>
-          </div>
-        </div>
-        <div class="chart-wrap">
+          </div>` : ""}
+        </div>` : ""}
+        ${display.show_graph ? `<div class="chart-wrap">
           <svg role="img" aria-label="Pris time for time"></svg>
-        </div>
-        <div class="legend">
-          <span class="legend-item"><i class="legend-bar"></i>Etter strømstøtte</span>
-          <span class="legend-item"><i class="legend-line"></i>Uten strømstøtte</span>
-          <span class="now-price"></span>
-        </div>
+        </div>` : ""}
+        ${showLegend ? `<div class="legend">
+          ${display.show_description ? `
+            <span class="legend-item"><i class="legend-bar"></i>Etter strømstøtte</span>
+            <span class="legend-item"><i class="legend-line"></i>Uten strømstøtte</span>
+          ` : ""}
+          ${display.show_now_price ? `<span class="now-price"></span>` : ""}
+        </div>` : ""}
       </ha-card>
       <div class="tooltip"></div>
     `;
 
     const detail = this.shadowRoot.querySelector(".now-price");
-    if (!model.available) {
-      detail.textContent = "Nå: —";
-    } else if (model.currentHour === null) {
-      detail.textContent = `Lavest: ${priceText(Math.min(...model.supported))}/kWh`;
-    } else {
-      detail.textContent = `Nå: ${priceText(model.supported[model.currentHour])}/kWh`;
+    if (detail) {
+      if (!model.available) {
+        detail.textContent = "Nå: —";
+      } else if (model.currentHour === null) {
+        detail.textContent = `Lavest: ${priceText(Math.min(...model.supported))}/kWh`;
+      } else {
+        detail.textContent = `Nå: ${priceText(model.supported[model.currentHour])}/kWh`;
+      }
     }
 
-    this._drawChart(model);
+    if (display.show_graph) this._drawChart(model, display);
   }
 
-  _drawChart(model) {
+  _drawChart(model, display) {
     const svg = this.shadowRoot.querySelector("svg");
     const tooltip = this.shadowRoot.querySelector(".tooltip");
     const width = 720;
@@ -375,6 +415,24 @@ class NordpoolPriceCard extends HTMLElement {
 
     if (!model.available) return;
 
+    if (display.show_mean_graph && Number.isFinite(model.average)) {
+      const meanY = y(model.average);
+      svg.append(svgNode("line", {
+        x1: margin.left,
+        y1: meanY,
+        x2: width - margin.right,
+        y2: meanY,
+        class: "mean-line",
+      }));
+      const meanLabel = svgNode("text", {
+        x: width - margin.right - 3,
+        y: meanY - 5,
+        class: "mean-label",
+      });
+      meanLabel.textContent = "SNITT";
+      svg.append(meanLabel);
+    }
+
     model.supported.forEach((value, index) => {
       const valueY = y(value);
       const rect = svgNode("rect", {
@@ -383,11 +441,11 @@ class NordpoolPriceCard extends HTMLElement {
         width: barWidth,
         height: Math.max(Math.abs(zeroY - valueY), 1),
         rx: 2.5,
-        class: `bar${index === model.currentHour ? " current" : ""}`,
+        class: `bar${display.show_now_graph && index === model.currentHour ? " current" : ""}`,
       });
       svg.append(rect);
 
-      if (index === model.currentHour) {
+      if (display.show_now_graph && index === model.currentHour) {
         const now = svgNode("text", {
           x: x(index),
           y: margin.top + 10,
@@ -460,7 +518,7 @@ class NordpoolPriceCardEditor extends HTMLElement {
     this.shadowRoot.innerHTML = `
       <style>
         :host { display: block; padding: 8px 0; }
-        label {
+        .field-label {
           display: block;
           margin-bottom: 7px;
           color: var(--secondary-text-color);
@@ -488,11 +546,44 @@ class NordpoolPriceCardEditor extends HTMLElement {
           color: var(--secondary-text-color);
           font-size: 12px;
         }
+        fieldset {
+          margin: 18px 0 0;
+          padding: 0;
+          border: 0;
+        }
+        legend {
+          margin-bottom: 9px;
+          color: var(--primary-text-color);
+          font-size: 14px;
+          font-weight: 650;
+        }
+        .option {
+          display: flex;
+          align-items: center;
+          gap: 10px;
+          min-height: 38px;
+          margin: 0;
+          color: var(--primary-text-color);
+          font-size: 14px;
+          font-weight: 400;
+          cursor: pointer;
+        }
+        .option.sub-option { padding-left: 26px; }
+        .option input {
+          width: 18px;
+          height: 18px;
+          margin: 0;
+          accent-color: var(--primary-color);
+        }
       </style>
-      <label for="entity">Strømstøttesensor</label>
+      <label class="field-label" for="entity">Strømstøttesensor</label>
       <select id="entity">
         <option value="">Velg sensor</option>
       </select>
+      <fieldset>
+        <legend>Vis i kortet</legend>
+        <div class="display-options"></div>
+      </fieldset>
     `;
 
     const select = this.shadowRoot.querySelector("select");
@@ -535,6 +626,42 @@ class NordpoolPriceCardEditor extends HTMLElement {
         composed: true,
       }));
     });
+
+    this._renderDisplayOptions();
+  }
+
+  _renderDisplayOptions() {
+    const container = this.shadowRoot.querySelector(".display-options");
+    if (!container) return;
+
+    const display = displayConfig(this._config);
+    for (const [key, labelText] of DISPLAY_OPTIONS) {
+      if (GRAPH_SUB_OPTIONS.has(key) && !display.show_graph) continue;
+
+      const label = document.createElement("label");
+      label.className = `option${GRAPH_SUB_OPTIONS.has(key) ? " sub-option" : ""}`;
+      const checkbox = document.createElement("input");
+      checkbox.type = "checkbox";
+      checkbox.checked = display[key];
+      checkbox.dataset.option = key;
+      label.append(checkbox, document.createTextNode(labelText));
+      container.append(label);
+
+      checkbox.addEventListener("change", () => {
+        const config = { ...this._config, [key]: checkbox.checked };
+        if (key === "show_graph" && !checkbox.checked) {
+          config.show_now_graph = false;
+          config.show_mean_graph = false;
+        }
+        this._config = config;
+        this.dispatchEvent(new CustomEvent("config-changed", {
+          detail: { config },
+          bubbles: true,
+          composed: true,
+        }));
+        this._render();
+      });
+    }
   }
 }
 
@@ -557,7 +684,7 @@ if (!window.customCards.some((card) => card.type === CARD_TYPE)) {
     getEntitySuggestion: (hass, entityId) => {
       const stateObj = hass.states[entityId];
       return isCompatibleState(stateObj)
-        ? { config: { type: `custom:${CARD_TYPE}`, entity: entityId } }
+        ? { config: { type: `custom:${CARD_TYPE}`, entity: entityId, ...DISPLAY_DEFAULTS } }
         : null;
     },
   });

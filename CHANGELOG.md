@@ -12,6 +12,8 @@ Alle vesentlige endringer i Nordpool strømoversikt dokumenteres i denne filen.
   sensorene **Strømstøtte** og **I morgen**.
 - Egen utilgjengelig-tilstand som beholder aksene og viser **Kommer** i stedet
   for snittpris.
+- Åtte visningsvalg i kortveiviseren for dato, snittpris, overskrift, graf,
+  grafmarkeringer, forklaring og nåpris.
 
 ## 1.2.0 – 2026-08-06
 

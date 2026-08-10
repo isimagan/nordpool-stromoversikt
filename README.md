@@ -111,12 +111,28 @@ Velg en kompatibel sensor i kortets visuelle veiviser:
 Når sensoren er utilgjengelig, beholder kortet x- og y-aksene uten søyler eller
 linje. Snittprisen vises da som **Kommer**.
 
+I den visuelle veiviseren kan du velge om kortet skal vise dato, snittpris,
+overskrift, graf, forklaring og nåpris. Når grafen vises, kan du i tillegg
+velge markering av gjeldende time og en horisontal snittlinje. Slås grafen av,
+slås også de to grafvalgene av automatisk.
+
 Kortet kan også legges til med YAML:
 
 ```yaml
 type: custom:nordpool-price-card
 entity: sensor.nordpool_stromstotte
+show_date: true
+show_mean: true
+show_heading: true
+show_graph: true
+show_now_graph: true
+show_mean_graph: true
+show_description: true
+show_now_price: true
 ```
+
+Alle visningsvalgene er `true` som standard og kan utelates fra YAML dersom
+standardvisningen skal brukes.
 
 Hvis Nord Pool ikke er installert, eller ingen Nord Pool-sensor finnes, må du
 installere og konfigurere Nord Pool før du kan fullføre oppsettet.
