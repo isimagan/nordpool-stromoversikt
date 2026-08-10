@@ -74,9 +74,10 @@ som Nord Pool-prisen.
 
 Sensoren har også attributtene:
 
-- `idag`: 23–25 timepriser for inneværende dag etter beregnet strømstøtte,
+- `original`: 23–25 ordinære Nord Pool-priser for inneværende dag,
   avhengig av om dagen har overgang til eller fra sommertid.
-  Nord Pools `today`-verdier samles til hele klokketimer før støtten beregnes.
+  Originalsensorens `today`-verdier samles til hele klokketimer.
+- `idag`: de samme timeprisene etter beregnet strømstøtte.
 - `snittpris`: gjennomsnittet av prisene i `idag`, avrundet til to
   desimaler.
 
