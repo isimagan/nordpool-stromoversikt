@@ -4,6 +4,15 @@ Alle vesentlige endringer i Nordpool strømoversikt dokumenteres i denne filen.
 
 ## Neste versjon
 
+## 1.3.3 – 2026-08-10
+
+### Rettet
+
+- Kortveiviseren beholder integrasjonens **I morgen**-sensor i sensorlisten når
+  morgendagens priser ennå ikke er tilgjengelige.
+
+## 1.3.2 – 2026-08-10
+
 ### Lagt til
 
 - Kortveiviseren kan skjule søylene etter strømstøtte og den stiplede linjen
@@ -14,13 +23,16 @@ Alle vesentlige endringer i Nordpool strømoversikt dokumenteres i denne filen.
 
 - Priskortet reduserer høyden når grafen skjules, i stedet for å beholde tom
   dashboardplass.
+
+## 1.3.1 – 2026-08-10
+
+### Rettet
+
 - Priskortet tilpasser grafhøyden til tilgjengelig dashboardplass, slik at
   klokkeslett, tegnforklaring og nåpris ikke blir beskåret.
 - Grafen bruker kortets faktiske mål, slik at akse- og graftekst ikke strekkes
   på smale skjermer.
 - Kortveiviseren bruker Home Assistants entitetsvelger for de to sensorfeltene.
-- Kortveiviseren beholder integrasjonens **I morgen**-sensor i sensorlisten når
-  morgendagens priser ennå ikke er tilgjengelige.
 - Dagsvelgeren er gjort lavere og mer kompakt.
 
 ## 1.3.0 – 2026-08-10
