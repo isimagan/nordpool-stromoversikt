@@ -2,6 +2,17 @@
 
 Alle vesentlige endringer i Nordpool strømoversikt dokumenteres i denne filen.
 
+## 1.3.0 – ikke publisert
+
+### Lagt til
+
+- Kortet **Nordpool priskort**, med timepriser etter strømstøtte som søyler og
+  ordinære Nord Pool-priser som en stiplet linje.
+- Visuell kortveiviser for valg av en kompatibel strømstøttesensor, inkludert
+  sensorene **Strømstøtte** og **I morgen**.
+- Egen utilgjengelig-tilstand som beholder aksene og viser **Kommer** i stedet
+  for snittpris.
+
 ## 1.2.0 – 2026-08-06
 
 ### Lagt til
