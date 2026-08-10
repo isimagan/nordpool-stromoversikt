@@ -105,7 +105,8 @@ den ordinære Nord Pool-prisen som en stiplet linje.
 I kortets visuelle veiviser er **Strømstøttesensor** påkrevd og brukes alltid
 til dagens priser. **I morgen-sensor** er valgfri. Når den velges, vises
 knappene **I dag** og **I morgen** øverst i kortet, slik at begge prisdøgn kan
-vises i samme kort.
+vises i samme kort. Begge sensorfeltene bruker Home Assistants vanlige
+entitetsvelger med søk, ikon og entitetsnavn.
 
 - **Strømstøttesensor** bruker attributtene `idag` og `original` og markerer
   gjeldende time.
