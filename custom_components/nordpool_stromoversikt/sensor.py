@@ -20,7 +20,6 @@ from .price import (
     hele_timer_fra_today,
     pris_etter_stromstotte,
     timepriser_fra_dagspriser,
-    timepriser_etter_stromstotte,
     velg_time,
 )
 
@@ -193,6 +192,7 @@ class NordpoolStromstotteSensor(NordpoolKildesensor):
         self._attr_native_value: float | None = None
         self._attr_available = False
         self._attr_extra_state_attributes = {
+            "original": None,
             "idag": None,
             "snittpris": None,
         }
@@ -215,14 +215,19 @@ class NordpoolStromstotteSensor(NordpoolKildesensor):
             self._sett_utilgjengelig()
             return
 
-        dagens_priser = timepriser_etter_stromstotte(
+        dagens_originalpriser = timepriser_fra_dagspriser(
             state.attributes.get("today"),
             dt_util.now(),
         )
+        dagens_priser = [
+            pris_etter_stromstotte(pris)
+            for pris in dagens_originalpriser
+        ]
 
         self._attr_available = True
         self._attr_native_value = pris_etter_stromstotte(pris)
         self._attr_extra_state_attributes = {
+            "original": dagens_originalpriser or None,
             "idag": dagens_priser or None,
             "snittpris": (
                 round(sum(dagens_priser) / len(dagens_priser), 2)
@@ -237,6 +242,7 @@ class NordpoolStromstotteSensor(NordpoolKildesensor):
         self._attr_available = False
         self._attr_native_value = None
         self._attr_extra_state_attributes = {
+            "original": None,
             "idag": None,
             "snittpris": None,
         }
