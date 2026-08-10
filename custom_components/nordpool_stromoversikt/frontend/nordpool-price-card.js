@@ -1,6 +1,8 @@
 const CARD_TYPE = "nordpool-price-card";
 const CARD_NAME = "Nordpool priskort";
 const CARD_DOCS = "https://github.com/isimagan/nordpool-stromoversikt#nordpool-priskort";
+const INTEGRATION_DOMAIN = "nordpool_stromoversikt";
+const TOMORROW_SENSOR_ICON = "mdi:calendar-arrow-right";
 
 const SVG_NS = "http://www.w3.org/2000/svg";
 const UNAVAILABLE_STATES = new Set(["unknown", "unavailable", "none", ""]);
@@ -257,6 +259,14 @@ function isTodayState(stateObj) {
 
 function isTomorrowState(stateObj) {
   return hasAttributes(stateObj, ["stotte", "pris", "snitt"]);
+}
+
+function isTomorrowEntity(hass, entityId, stateObj) {
+  if (isTomorrowState(stateObj)) return true;
+
+  return UNAVAILABLE_STATES.has(String(stateObj?.state).toLowerCase())
+    && hass?.entities?.[entityId]?.platform === INTEGRATION_DOMAIN
+    && stateObj?.attributes?.icon === TOMORROW_SENSOR_ICON;
 }
 
 function capitalize(value) {
@@ -737,7 +747,9 @@ class NordpoolPriceCardEditor extends HTMLElement {
       .map(([entityId]) => entityId)
       .sort((left, right) => left.localeCompare(right, "nb"));
     const tomorrowEntities = stateEntries
-      .filter(([, stateObj]) => isTomorrowState(stateObj))
+      .filter(([entityId, stateObj]) => (
+        isTomorrowEntity(this._hass, entityId, stateObj)
+      ))
       .map(([entityId]) => entityId)
       .sort((left, right) => left.localeCompare(right, "nb"));
 
