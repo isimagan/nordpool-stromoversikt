@@ -100,3 +100,23 @@ test("uses the Home Assistant calendar date for today and tomorrow", () => {
     "Fredag 14. august",
   );
 });
+
+test("prefers authoritative time data from the Home Assistant backend", () => {
+  const prices = Array.from({ length: 24 }, (_, hour) => hour);
+  const stateObj = {
+    state: "1.23",
+    attributes: {
+      idag: prices,
+      original: prices,
+      snittpris: 11.5,
+      dato: "2026-08-12",
+      gjeldende_time: 15,
+      tidssone: "Europe/Oslo",
+    },
+  };
+  const bostonNow = new Date("2026-08-12T13:30:00Z");
+  const model = sensorModel(stateObj, false, "America/New_York", bostonNow);
+
+  assert.equal(model.currentHour, 15);
+  assert.equal(model.date, "Onsdag 12. august");
+});

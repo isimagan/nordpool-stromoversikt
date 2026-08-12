@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+from hashlib import sha256
 from pathlib import Path
 
 from homeassistant.components.frontend import add_extra_js_url
@@ -16,14 +17,15 @@ from homeassistant.helpers.typing import ConfigType
 from .const import CONF_NORDPOOL_SENSOR
 
 PLATFORMS: tuple[Platform, ...] = (Platform.SENSOR,)
-CARD_URL = "/nordpool_stromoversikt/nordpool-price-card.js"
+CARD_PATH = "/nordpool_stromoversikt/nordpool-price-card.js"
 CARD_FILE = Path(__file__).parent / "frontend" / "nordpool-price-card.js"
+CARD_URL = f"{CARD_PATH}?v={sha256(CARD_FILE.read_bytes()).hexdigest()[:12]}"
 
 
 async def async_setup(hass: HomeAssistant, config: ConfigType) -> bool:
     """Registrer priskortet i Home Assistant-frontend."""
     await hass.http.async_register_static_paths(
-        [StaticPathConfig(CARD_URL, str(CARD_FILE), False)]
+        [StaticPathConfig(CARD_PATH, str(CARD_FILE), False)]
     )
     add_extra_js_url(hass, CARD_URL)
     return True

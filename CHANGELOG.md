@@ -4,6 +4,15 @@ Alle vesentlige endringer i Nordpool strømoversikt dokumenteres i denne filen.
 
 ## Neste versjon
 
+## 1.3.5 – 2026-08-12
+
+### Rettet
+
+- Priskortet bruker autoritativ dato og gjeldende time fra Home Assistant-
+  backenden, slik at nettleserens tidssone ikke kan overstyre markeringen.
+- Frontendressursen får en innholdsbasert versjon i URL-en, slik at oppdaterte
+  kortfiler ikke gjenbrukes fra nettleserbufferen etter omstart.
+
 ## 1.3.4 – 2026-08-12
 
 ### Rettet

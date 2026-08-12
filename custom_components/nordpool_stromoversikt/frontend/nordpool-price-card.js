@@ -299,6 +299,16 @@ function homeAssistantTime(date, timeZone) {
   );
 }
 
+function calendarDate(value) {
+  const match = /^(\d{4})-(\d{2})-(\d{2})$/.exec(String(value ?? ""));
+  if (!match) return null;
+  return {
+    year: Number(match[1]),
+    month: Number(match[2]),
+    day: Number(match[3]),
+  };
+}
+
 function dayLabel({ year, month, day }, dayOffset = 0) {
   const date = new Date(Date.UTC(year, month - 1, day + dayOffset));
   return capitalize(date.toLocaleDateString("nb-NO", {
@@ -353,7 +363,9 @@ function sensorModel(stateObj, isTomorrow = false, timeZone, now = new Date()) {
     && validLength
     && supported.length === original.length;
 
-  const haTime = homeAssistantTime(now, timeZone);
+  const haTime = homeAssistantTime(now, attrs.tidssone || timeZone);
+  const backendDate = calendarDate(attrs.dato);
+  const backendHour = Number(attrs.gjeldende_time);
 
   let average = Number(isTomorrow ? stateObj?.state : attrs.snittpris);
   if (!Number.isFinite(average) && supported.length) {
@@ -361,12 +373,20 @@ function sensorModel(stateObj, isTomorrow = false, timeZone, now = new Date()) {
   }
 
   const currentHour = !isTomorrow && available
-    ? Math.min(haTime.hour, supported.length - 1)
+    ? Math.min(
+      Number.isInteger(backendHour) && backendHour >= 0 && backendHour <= 23
+        ? backendHour
+        : haTime.hour,
+      supported.length - 1,
+    )
     : null;
 
   return {
     title: isTomorrow ? "Strømpris i morgen" : "Strømpris i dag",
-    date: dayLabel(haTime, isTomorrow ? 1 : 0),
+    date: dayLabel(
+      backendDate || haTime,
+      backendDate ? 0 : (isTomorrow ? 1 : 0),
+    ),
     supported: available ? supported : [],
     original: available ? original : [],
     average,
