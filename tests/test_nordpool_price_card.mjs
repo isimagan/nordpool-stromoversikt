@@ -23,9 +23,12 @@ const context = vm.createContext({
   window: {},
 });
 
-vm.runInContext(`${source}\n;globalThis.cardTest = { isTomorrowEntity };`, context);
+vm.runInContext(
+  `${source}\n;globalThis.cardTest = { isTomorrowEntity, sensorModel };`,
+  context,
+);
 
-const { isTomorrowEntity } = context.cardTest;
+const { isTomorrowEntity, sensorModel } = context.cardTest;
 const unavailableTomorrow = {
   state: "unavailable",
   attributes: { icon: "mdi:calendar-arrow-right" },
@@ -67,4 +70,33 @@ test("rejects unrelated unavailable sensors", () => {
     "sensor.nordpool_stromstotte",
     { state: "unavailable", attributes: { icon: "mdi:cash-refund" } },
   ), false);
+});
+
+test("uses the Home Assistant time zone for the current hour", () => {
+  const prices = Array.from({ length: 24 }, (_, hour) => hour);
+  const stateObj = {
+    state: "1.23",
+    attributes: {
+      idag: prices,
+      original: prices,
+      snittpris: 11.5,
+    },
+  };
+  const now = new Date("2026-08-12T12:30:00Z");
+
+  assert.equal(sensorModel(stateObj, false, "Europe/Oslo", now).currentHour, 14);
+  assert.equal(sensorModel(stateObj, false, "America/New_York", now).currentHour, 8);
+});
+
+test("uses the Home Assistant calendar date for today and tomorrow", () => {
+  const now = new Date("2026-08-12T23:30:00Z");
+
+  assert.equal(
+    sensorModel(undefined, false, "Europe/Oslo", now).date,
+    "Torsdag 13. august",
+  );
+  assert.equal(
+    sensorModel(undefined, true, "Europe/Oslo", now).date,
+    "Fredag 14. august",
+  );
 });

@@ -273,8 +273,36 @@ function capitalize(value) {
   return value ? value.charAt(0).toUpperCase() + value.slice(1) : value;
 }
 
-function dayLabel(date) {
+function homeAssistantTime(date, timeZone) {
+  const options = {
+    year: "numeric",
+    month: "numeric",
+    day: "numeric",
+    hour: "numeric",
+    hourCycle: "h23",
+  };
+  if (timeZone) options.timeZone = timeZone;
+
+  let parts;
+  try {
+    parts = new Intl.DateTimeFormat("en-CA", options).formatToParts(date);
+  } catch (error) {
+    if (!(error instanceof RangeError)) throw error;
+    delete options.timeZone;
+    parts = new Intl.DateTimeFormat("en-CA", options).formatToParts(date);
+  }
+
+  return Object.fromEntries(
+    parts
+      .filter(({ type }) => ["year", "month", "day", "hour"].includes(type))
+      .map(({ type, value }) => [type, Number(value)]),
+  );
+}
+
+function dayLabel({ year, month, day }, dayOffset = 0) {
+  const date = new Date(Date.UTC(year, month - 1, day + dayOffset));
   return capitalize(date.toLocaleDateString("nb-NO", {
+    timeZone: "UTC",
     weekday: "long",
     day: "numeric",
     month: "long",
@@ -315,7 +343,7 @@ function cardLayout(config = {}) {
   return { cardSize: compactRows, gridRows: compactRows };
 }
 
-function sensorModel(stateObj, isTomorrow = false) {
+function sensorModel(stateObj, isTomorrow = false, timeZone, now = new Date()) {
   const attrs = stateObj?.attributes ?? {};
   const supported = numberList(isTomorrow ? attrs.stotte : attrs.idag);
   const original = numberList(isTomorrow ? attrs.pris : attrs.original);
@@ -325,8 +353,7 @@ function sensorModel(stateObj, isTomorrow = false) {
     && validLength
     && supported.length === original.length;
 
-  const date = new Date();
-  if (isTomorrow) date.setDate(date.getDate() + 1);
+  const haTime = homeAssistantTime(now, timeZone);
 
   let average = Number(isTomorrow ? stateObj?.state : attrs.snittpris);
   if (!Number.isFinite(average) && supported.length) {
@@ -334,12 +361,12 @@ function sensorModel(stateObj, isTomorrow = false) {
   }
 
   const currentHour = !isTomorrow && available
-    ? Math.min(new Date().getHours(), supported.length - 1)
+    ? Math.min(haTime.hour, supported.length - 1)
     : null;
 
   return {
     title: isTomorrow ? "Strømpris i morgen" : "Strømpris i dag",
-    date: dayLabel(date),
+    date: dayLabel(haTime, isTomorrow ? 1 : 0),
     supported: available ? supported : [],
     original: available ? original : [],
     average,
@@ -421,7 +448,11 @@ class NordpoolPriceCard extends HTMLElement {
     const stateObj = activeEntity
       ? this._hass.states[activeEntity]
       : undefined;
-    const model = sensorModel(stateObj, isTomorrow);
+    const model = sensorModel(
+      stateObj,
+      isTomorrow,
+      this._hass.config?.time_zone,
+    );
     const display = displayConfig(this._config);
     const showHead = display.show_date || display.show_heading || display.show_mean;
     const showDescription = display.show_description

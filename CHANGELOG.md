@@ -4,6 +4,13 @@ Alle vesentlige endringer i Nordpool strømoversikt dokumenteres i denne filen.
 
 ## Neste versjon
 
+## 1.3.4 – 2026-08-12
+
+### Rettet
+
+- Priskortets dato, nåpris og markering av gjeldende time følger nå Home
+  Assistants konfigurerte tidssone i stedet for nettleserens lokale tidssone.
+
 ## 1.3.3 – 2026-08-10
 
 ### Rettet
