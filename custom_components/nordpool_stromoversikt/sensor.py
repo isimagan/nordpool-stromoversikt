@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+from datetime import timedelta
 import math
 
 from homeassistant.components.sensor import SensorEntity
@@ -22,6 +23,20 @@ from .price import (
     timepriser_fra_dagspriser,
     velg_time,
 )
+
+
+def _korttidsattributter(
+    hass: HomeAssistant,
+    *,
+    dag_offset: int = 0,
+) -> dict[str, int | str]:
+    """Lag autoritative dato- og tidsattributter fra HA-backenden."""
+    na = dt_util.now()
+    return {
+        "dato": (na.date() + timedelta(days=dag_offset)).isoformat(),
+        "gjeldende_time": na.hour,
+        "tidssone": hass.config.time_zone,
+    }
 
 
 async def async_setup_entry(
@@ -195,6 +210,7 @@ class NordpoolStromstotteSensor(NordpoolKildesensor):
             "original": None,
             "idag": None,
             "snittpris": None,
+            **_korttidsattributter(hass),
         }
 
     @callback
@@ -234,6 +250,7 @@ class NordpoolStromstotteSensor(NordpoolKildesensor):
                 if dagens_priser
                 else None
             ),
+            **_korttidsattributter(self.hass),
         }
 
     @callback
@@ -245,6 +262,7 @@ class NordpoolStromstotteSensor(NordpoolKildesensor):
             "original": None,
             "idag": None,
             "snittpris": None,
+            **_korttidsattributter(self.hass),
         }
 
 
@@ -267,6 +285,7 @@ class NordpoolIMorgenSensor(NordpoolKildesensor):
             "snitt": None,
             "pris": None,
             "stotte": None,
+            **_korttidsattributter(hass, dag_offset=1),
         }
 
     @callback
@@ -293,6 +312,7 @@ class NordpoolIMorgenSensor(NordpoolKildesensor):
             "snitt": round(sum(priser) / len(priser), 2),
             "pris": priser,
             "stotte": stotte,
+            **_korttidsattributter(self.hass, dag_offset=1),
         }
 
     @callback
@@ -304,4 +324,5 @@ class NordpoolIMorgenSensor(NordpoolKildesensor):
             "snitt": None,
             "pris": None,
             "stotte": None,
+            **_korttidsattributter(self.hass, dag_offset=1),
         }
