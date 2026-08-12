@@ -138,11 +138,14 @@ show_now_graph: true
 show_mean_graph: true
 show_description: true
 show_now_price: true
+show_border: true
 ```
 
 Alle visningsvalgene er `true` som standard og kan utelates fra YAML dersom
-standardvisningen skal brukes. `tomorrow_entity` kan utelates; da viser kortet
-bare dagens priser og dagsknappene skjules.
+standardvisningen skal brukes. Sett `show_border: false` for å skjule både
+kanten og skyggen rundt kortet. Dette valget finnes bare i YAML og vises ikke i
+den visuelle veiviseren. `tomorrow_entity` kan utelates; da viser kortet bare
+dagens priser og dagsknappene skjules.
 
 Hvis Nord Pool ikke er installert, eller ingen Nord Pool-sensor finnes, må du
 installere og konfigurere Nord Pool før du kan fullføre oppsettet.

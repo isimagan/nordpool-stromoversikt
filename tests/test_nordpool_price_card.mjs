@@ -24,11 +24,11 @@ const context = vm.createContext({
 });
 
 vm.runInContext(
-  `${source}\n;globalThis.cardTest = { isTomorrowEntity, sensorModel };`,
+  `${source}\n;globalThis.cardTest = { cardClass, isTomorrowEntity, sensorModel };`,
   context,
 );
 
-const { isTomorrowEntity, sensorModel } = context.cardTest;
+const { cardClass, isTomorrowEntity, sensorModel } = context.cardTest;
 const unavailableTomorrow = {
   state: "unavailable",
   attributes: { icon: "mdi:calendar-arrow-right" },
@@ -70,6 +70,12 @@ test("rejects unrelated unavailable sensors", () => {
     "sensor.nordpool_stromstotte",
     { state: "unavailable", attributes: { icon: "mdi:cash-refund" } },
   ), false);
+});
+
+test("hides the card border only when show_border is false", () => {
+  assert.equal(cardClass({ show_border: false }), "borderless");
+  assert.equal(cardClass({ show_border: true }), "");
+  assert.equal(cardClass({}), "");
 });
 
 test("uses the Home Assistant time zone for the current hour", () => {

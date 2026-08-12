@@ -4,6 +4,13 @@ Alle vesentlige endringer i Nordpool strømoversikt dokumenteres i denne filen.
 
 ## Neste versjon
 
+## 1.3.6 – 2026-08-12
+
+### Lagt til
+
+- YAML-parameteren `show_border`. Når den settes til `false`, skjules kanten og
+  skyggen rundt priskortet uten at valget vises i konfigurasjonsveiviseren.
+
 ## 1.3.5 – 2026-08-12
 
 ### Rettet

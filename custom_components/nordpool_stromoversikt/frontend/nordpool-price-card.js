@@ -48,6 +48,11 @@ const styles = `
     flex-direction: column;
   }
 
+  ha-card.borderless {
+    border: none;
+    box-shadow: none;
+  }
+
   .period-switch {
     display: grid;
     grid-template-columns: 1fr 1fr;
@@ -337,6 +342,10 @@ function displayConfig(config = {}) {
   return display;
 }
 
+function cardClass(config = {}) {
+  return config.show_border === false ? "borderless" : "";
+}
+
 function cardLayout(config = {}) {
   const display = displayConfig(config);
   if (display.show_graph) return { cardSize: 9, gridRows: 7 };
@@ -481,7 +490,7 @@ class NordpoolPriceCard extends HTMLElement {
 
     this.shadowRoot.innerHTML = `
       <style>${styles}</style>
-      <ha-card aria-label="Nordpool priskort">
+      <ha-card class="${cardClass(this._config)}" aria-label="Nordpool priskort">
         ${hasTomorrow ? `<nav class="period-switch" aria-label="Velg prisdag">
           <button class="period-button${isTomorrow ? "" : " active"}" type="button" data-period="today" aria-pressed="${!isTomorrow}">I dag</button>
           <button class="period-button${isTomorrow ? " active" : ""}" type="button" data-period="tomorrow" aria-pressed="${isTomorrow}">I morgen</button>
