@@ -24,14 +24,29 @@ const context = vm.createContext({
 });
 
 vm.runInContext(
-  `${source}\n;globalThis.cardTest = { badgeStateText, cardClass, isTomorrowEntity, sensorModel };`,
+  `${source}\n;globalThis.cardTest = {
+    badgeBackground,
+    badgeLabel,
+    badgeStateText,
+    badgeTimeRange,
+    cardClass,
+    isBadgeEntity,
+    isTomorrowEntity,
+    NordpoolBadge,
+    sensorModel,
+  };`,
   context,
 );
 
 const {
+  badgeBackground,
+  badgeLabel,
   badgeStateText,
+  badgeTimeRange,
   cardClass,
+  isBadgeEntity,
   isTomorrowEntity,
+  NordpoolBadge,
   sensorModel,
 } = context.cardTest;
 const unavailableTomorrow = {
@@ -113,9 +128,70 @@ test("uses the Home Assistant calendar date for today and tomorrow", () => {
 });
 
 test("formats the Nordpool badge state as a Norwegian krone amount", () => {
-  assert.equal(badgeStateText({ state: "1.2" }), "1,20 kr");
+  assert.equal(badgeStateText({ state: "1.2" }), "1,2 kr");
+  assert.equal(badgeStateText({ state: "1.2" }, "kWh/NOK"), "1,2 kWh/NOK");
   assert.equal(badgeStateText({ state: "unavailable" }), "—");
   assert.equal(badgeStateText(undefined), "—");
+});
+
+test("builds the badge label from price and the current whole hour", () => {
+  const now = new Date("2026-08-12T13:26:00Z");
+
+  assert.equal(badgeLabel({}, "Europe/Oslo", now), "Pris");
+  assert.equal(
+    badgeLabel({ show_price: true, show_time_range: true }, "Europe/Oslo", now),
+    "Pris · 15:00-16:00",
+  );
+  assert.equal(
+    badgeLabel({ show_price: false, show_time_range: true }, "Europe/Oslo", now),
+    "15:00-16:00",
+  );
+  assert.equal(
+    badgeLabel({ show_price: false, show_time_range: false }, "Europe/Oslo", now),
+    "",
+  );
+  assert.equal(badgeTimeRange("Europe/Oslo", now), "15:00-16:00");
+});
+
+test("colors the badge between the cheapest and most expensive prices", () => {
+  const config = {
+    show_background: true,
+    cheapest_color: "green",
+    most_expensive_color: "red",
+  };
+
+  assert.equal(
+    badgeBackground({ state: "0", attributes: { idag: [0, 1, 2] } }, config),
+    "green",
+  );
+  assert.equal(
+    badgeBackground({ state: "1", attributes: { idag: [0, 1, 2] } }, config),
+    "color-mix(in srgb, green 50%, red)",
+  );
+  assert.equal(
+    badgeBackground({ state: "2", attributes: { today: [0, 1, 2] } }, config),
+    "red",
+  );
+  assert.equal(
+    badgeBackground({ state: "1", attributes: { idag: [0, 1, 2] } }, {}),
+    undefined,
+  );
+});
+
+test("offers Nord Pool and strømstøtte sensors in the badge editor", () => {
+  const support = {
+    state: "1.2",
+    attributes: { idag: [], original: [], snittpris: 1.2 },
+  };
+  const source = { state: "1.8", attributes: { today: [], tomorrow: [] } };
+  const hass = {
+    states: { "sensor.source": source, "sensor.support": support },
+    entities: { "sensor.source": { platform: "nordpool" } },
+  };
+
+  assert.equal(isBadgeEntity(hass, "sensor.source", source), true);
+  assert.equal(isBadgeEntity(hass, "sensor.support", support), true);
+  assert.equal(NordpoolBadge.getStubConfig(hass).entity, "sensor.support");
 });
 
 test("registers Nordpool Badge in the Home Assistant badge picker", () => {

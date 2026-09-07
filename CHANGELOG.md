@@ -8,9 +8,11 @@ Alle vesentlige endringer i Nordpool strømoversikt dokumenteres i denne filen.
 
 ### Lagt til
 
-- Badgen **Nordpool Badge**, som følger Home Assistants standardbadge og viser
-  gjeldende strømpris etter strømstøtte med labelen **Strømpris** og ikonet
-  `mdi:ab-testing`.
+- Badgen **Nordpool Badge**, som følger Home Assistants standardbadge og kan
+  vise tilstanden fra Nord Pool-sensoren eller strømstøttesensoren.
+- Badgeveiviser med valg for labeldelene **Pris** og **Tidsrom**, prisbasert
+  bakgrunn med egendefinerte CSS-farger, entitetsikon eller valgfritt ikon og
+  enheten `kr` eller `kWh/NOK`.
 
 ## 1.3.6 – 2026-08-12
 

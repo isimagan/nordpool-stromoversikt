@@ -4,8 +4,15 @@ const CARD_DOCS = "https://github.com/isimagan/nordpool-stromoversikt#nordpool-p
 const BADGE_TYPE = "nordpool-badge";
 const BADGE_NAME = "Nordpool Badge";
 const BADGE_DOCS = "https://github.com/isimagan/nordpool-stromoversikt#nordpool-badge";
-const BADGE_LABEL = "Strømpris";
-const BADGE_ICON = "mdi:ab-testing";
+const BADGE_UNITS = ["kr", "kWh/NOK"];
+const BADGE_DEFAULTS = {
+  show_price: true,
+  show_time_range: false,
+  show_background: false,
+  cheapest_color: "green",
+  most_expensive_color: "red",
+  unit: BADGE_UNITS[0],
+};
 const INTEGRATION_DOMAIN = "nordpool_stromoversikt";
 const TOMORROW_SENSOR_ICON = "mdi:calendar-arrow-right";
 
@@ -337,13 +344,74 @@ function priceText(value) {
   })} kr`;
 }
 
-function badgeStateText(stateObj) {
+function badgeConfig(config = {}) {
+  return {
+    show_price: config.show_price !== false,
+    show_time_range: config.show_time_range === true,
+    show_background: config.show_background === true,
+    cheapest_color: config.cheapest_color || BADGE_DEFAULTS.cheapest_color,
+    most_expensive_color: config.most_expensive_color
+      || BADGE_DEFAULTS.most_expensive_color,
+    unit: BADGE_UNITS.includes(config.unit) ? config.unit : BADGE_DEFAULTS.unit,
+  };
+}
+
+function badgeStateText(stateObj, unit = BADGE_DEFAULTS.unit) {
   if (!stateObj
     || UNAVAILABLE_STATES.has(String(stateObj.state).toLowerCase())) {
     return "—";
   }
 
-  return priceText(Number(stateObj.state));
+  const value = Number(stateObj.state);
+  if (!Number.isFinite(value)) return "—";
+  const state = value.toLocaleString("nb-NO", { maximumFractionDigits: 10 });
+  return `${state} ${BADGE_UNITS.includes(unit) ? unit : BADGE_DEFAULTS.unit}`;
+}
+
+function badgeTimeRange(timeZone, now = new Date()) {
+  const hour = homeAssistantTime(now, timeZone).hour;
+  const nextHour = (hour + 1) % 24;
+  return `${String(hour).padStart(2, "0")}:00-${String(nextHour).padStart(2, "0")}:00`;
+}
+
+function badgeLabel(config, timeZone, now = new Date()) {
+  const display = badgeConfig(config);
+  const parts = [];
+  if (display.show_price) parts.push("Pris");
+  if (display.show_time_range) parts.push(badgeTimeRange(timeZone, now));
+  return parts.join(" · ");
+}
+
+function isNordpoolSourceEntity(hass, entityId, stateObj) {
+  return hass?.entities?.[entityId]?.platform === "nordpool"
+    || hasAttributes(stateObj, ["today", "tomorrow"]);
+}
+
+function isBadgeEntity(hass, entityId, stateObj) {
+  return isTodayState(stateObj)
+    || isNordpoolSourceEntity(hass, entityId, stateObj);
+}
+
+function badgeBackground(stateObj, config = {}) {
+  const display = badgeConfig(config);
+  if (!display.show_background || !stateObj) return undefined;
+
+  const currentPrice = Number(stateObj.state);
+  const prices = numberList(stateObj.attributes?.idag).length
+    ? numberList(stateObj.attributes.idag)
+    : numberList(stateObj.attributes?.today);
+  if (!Number.isFinite(currentPrice) || !prices.length) return undefined;
+
+  const minimum = Math.min(...prices);
+  const maximum = Math.max(...prices);
+  const position = maximum === minimum
+    ? 0
+    : Math.min(1, Math.max(0, (currentPrice - minimum) / (maximum - minimum)));
+  if (position === 0) return display.cheapest_color;
+  if (position === 1) return display.most_expensive_color;
+
+  const cheapestShare = Math.round((1 - position) * 10000) / 100;
+  return `color-mix(in srgb, ${display.cheapest_color} ${cheapestShare}%, ${display.most_expensive_color})`;
 }
 
 function displayConfig(config = {}) {
@@ -928,9 +996,17 @@ class NordpoolBadge extends HTMLElement {
   }
 
   static getStubConfig(hass) {
-    const entity = Object.keys(hass?.states ?? {})
-      .find((entityId) => isTodayState(hass.states[entityId]));
-    return entity ? { entity } : {};
+    const stateEntries = Object.entries(hass?.states ?? {});
+    const entity = stateEntries
+      .find(([, stateObj]) => isTodayState(stateObj))?.[0];
+    const sourceEntity = stateEntries
+      .find(([entityId, stateObj]) => (
+        isNordpoolSourceEntity(hass, entityId, stateObj)
+      ))?.[0];
+    return {
+      ...BADGE_DEFAULTS,
+      ...(entity ? { entity } : sourceEntity ? { entity: sourceEntity } : {}),
+    };
   }
 
   constructor() {
@@ -956,18 +1032,35 @@ class NordpoolBadge extends HTMLElement {
     const stateObj = this._config.entity
       ? this._hass.states[this._config.entity]
       : undefined;
+    const display = badgeConfig(this._config);
+    const label = badgeLabel(
+      this._config,
+      stateObj?.attributes?.tidssone || this._hass.config?.time_zone,
+    );
 
     this.shadowRoot.innerHTML = `
-      <ha-badge aria-label="${BADGE_LABEL}">
-        <ha-icon slot="icon"></ha-icon>
+      <ha-badge>
+        <ha-state-icon slot="icon"></ha-state-icon>
         <span class="state"></span>
       </ha-badge>
     `;
 
     const badge = this.shadowRoot.querySelector("ha-badge");
-    badge.label = BADGE_LABEL;
-    this.shadowRoot.querySelector("ha-icon").icon = BADGE_ICON;
-    this.shadowRoot.querySelector(".state").textContent = badgeStateText(stateObj);
+    badge.label = label || undefined;
+    badge.setAttribute(
+      "aria-label",
+      [label, badgeStateText(stateObj, display.unit)].filter(Boolean).join(" "),
+    );
+    const background = badgeBackground(stateObj, this._config);
+    if (background) badge.style.setProperty("--ha-card-background", background);
+
+    const icon = this.shadowRoot.querySelector("ha-state-icon");
+    icon.stateObj = stateObj;
+    if (this._config.icon) icon.icon = this._config.icon;
+    this.shadowRoot.querySelector(".state").textContent = badgeStateText(
+      stateObj,
+      display.unit,
+    );
   }
 }
 
@@ -992,26 +1085,92 @@ class NordpoolBadgeEditor extends HTMLElement {
   _render() {
     if (!this._hass) return;
 
-    if (!customElements.get("ha-entity-picker")) {
+    const requiredElements = [
+      "ha-entity-picker",
+      "ha-icon-picker",
+      "ha-color-picker",
+      "ha-select",
+    ];
+    const missingElement = requiredElements.find((name) => !customElements.get(name));
+    if (missingElement) {
       this.shadowRoot.innerHTML = `<p>Laster sensorvelger …</p>`;
-      customElements.whenDefined("ha-entity-picker").then(() => this._render());
+      customElements.whenDefined(missingElement).then(() => this._render());
       return;
     }
 
     const entities = Object.entries(this._hass.states)
-      .filter(([, stateObj]) => isTodayState(stateObj))
+      .filter(([entityId, stateObj]) => (
+        isBadgeEntity(this._hass, entityId, stateObj)
+      ))
       .map(([entityId]) => entityId)
       .sort((left, right) => left.localeCompare(right, "nb"));
     if (this._config.entity && !entities.includes(this._config.entity)) {
       entities.push(this._config.entity);
     }
 
-    this.shadowRoot.innerHTML = `<ha-entity-picker></ha-entity-picker>`;
+    const display = badgeConfig(this._config);
+    this.shadowRoot.innerHTML = `
+      <style>
+        :host { display: block; padding: 8px 0; }
+        ha-entity-picker,
+        ha-icon-picker,
+        ha-color-picker,
+        ha-select { display: block; width: 100%; margin-top: 16px; }
+        fieldset { margin: 18px 0 0; padding: 0; border: 0; }
+        legend {
+          margin-bottom: 9px;
+          color: var(--primary-text-color);
+          font-size: 14px;
+          font-weight: 650;
+        }
+        .option {
+          display: flex;
+          align-items: center;
+          gap: 10px;
+          min-height: 38px;
+          color: var(--primary-text-color);
+          font-size: 14px;
+          cursor: pointer;
+        }
+        .option input {
+          width: 18px;
+          height: 18px;
+          margin: 0;
+          accent-color: var(--primary-color);
+        }
+        .colors[hidden] { display: none; }
+      </style>
+      <ha-entity-picker></ha-entity-picker>
+      <fieldset class="label-options">
+        <legend>Label</legend>
+        <label class="option">
+          <input type="checkbox" data-option="show_price">
+          Pris
+        </label>
+        <label class="option">
+          <input type="checkbox" data-option="show_time_range">
+          Tidsrom
+        </label>
+      </fieldset>
+      <fieldset class="background-options">
+        <legend>Bakgrunn</legend>
+        <label class="option">
+          <input type="checkbox" data-option="show_background">
+          Vis prisbasert bakgrunn
+        </label>
+        <div class="colors"${display.show_background ? "" : " hidden"}>
+          <ha-color-picker class="cheapest-color"></ha-color-picker>
+          <ha-color-picker class="most-expensive-color"></ha-color-picker>
+        </div>
+      </fieldset>
+      <ha-icon-picker></ha-icon-picker>
+      <ha-select></ha-select>
+    `;
     const picker = this.shadowRoot.querySelector("ha-entity-picker");
     picker.hass = this._hass;
     picker.value = this._config.entity || "";
-    picker.label = "Strømstøttesensor";
-    picker.helper = "Påkrevd · vises som strømpris i badgen";
+    picker.label = "Prissensor";
+    picker.helper = "Nord Pool-sensor eller integrasjonens strømstøttesensor";
     picker.required = true;
     picker.includeDomains = ["sensor"];
     picker.includeEntities = entities;
@@ -1026,6 +1185,77 @@ class NordpoolBadgeEditor extends HTMLElement {
         composed: true,
       }));
     });
+
+    for (const checkbox of this.shadowRoot.querySelectorAll("[data-option]")) {
+      const option = checkbox.dataset.option;
+      checkbox.checked = display[option];
+      checkbox.addEventListener("change", () => {
+        this._changeConfig({ [option]: checkbox.checked });
+        if (option === "show_background") this._render();
+      });
+    }
+
+    const cheapestColor = this.shadowRoot.querySelector(".cheapest-color");
+    cheapestColor.value = display.cheapest_color;
+    cheapestColor.defaultColor = BADGE_DEFAULTS.cheapest_color;
+    cheapestColor.label = "Bakgrunnsfarge for billigst";
+    cheapestColor.addEventListener("value-changed", (event) => {
+      this._changeConfig({
+        cheapest_color: event.detail.value || BADGE_DEFAULTS.cheapest_color,
+      });
+    });
+
+    const mostExpensiveColor = this.shadowRoot.querySelector(
+      ".most-expensive-color",
+    );
+    mostExpensiveColor.value = display.most_expensive_color;
+    mostExpensiveColor.defaultColor = BADGE_DEFAULTS.most_expensive_color;
+    mostExpensiveColor.label = "Bakgrunnsfarge for dyrest";
+    mostExpensiveColor.addEventListener("value-changed", (event) => {
+      this._changeConfig({
+        most_expensive_color: event.detail.value
+          || BADGE_DEFAULTS.most_expensive_color,
+      });
+    });
+
+    const selectedState = this._config.entity
+      ? this._hass.states[this._config.entity]
+      : undefined;
+    const iconPicker = this.shadowRoot.querySelector("ha-icon-picker");
+    iconPicker.value = this._config.icon || "";
+    iconPicker.placeholder = selectedState?.attributes?.icon;
+    iconPicker.label = "Ikon";
+    iconPicker.helper = "Tomt valg bruker ikonet til den valgte entiteten";
+    iconPicker.addEventListener("value-changed", (event) => {
+      const config = { ...this._config };
+      if (event.detail.value) config.icon = event.detail.value;
+      else delete config.icon;
+      this._setConfig(config);
+    });
+
+    const unitPicker = this.shadowRoot.querySelector("ha-select");
+    unitPicker.label = "Enhet";
+    unitPicker.value = display.unit;
+    unitPicker.options = BADGE_UNITS.map((unit) => ({
+      value: unit,
+      label: unit,
+    }));
+    unitPicker.addEventListener("selected", (event) => {
+      this._changeConfig({ unit: event.currentTarget.value });
+    });
+  }
+
+  _changeConfig(changes) {
+    this._setConfig({ ...this._config, ...changes });
+  }
+
+  _setConfig(config) {
+    this._config = config;
+    this.dispatchEvent(new CustomEvent("config-changed", {
+      detail: { config },
+      bubbles: true,
+      composed: true,
+    }));
   }
 }
 
