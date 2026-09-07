@@ -24,11 +24,16 @@ const context = vm.createContext({
 });
 
 vm.runInContext(
-  `${source}\n;globalThis.cardTest = { cardClass, isTomorrowEntity, sensorModel };`,
+  `${source}\n;globalThis.cardTest = { badgeStateText, cardClass, isTomorrowEntity, sensorModel };`,
   context,
 );
 
-const { cardClass, isTomorrowEntity, sensorModel } = context.cardTest;
+const {
+  badgeStateText,
+  cardClass,
+  isTomorrowEntity,
+  sensorModel,
+} = context.cardTest;
 const unavailableTomorrow = {
   state: "unavailable",
   attributes: { icon: "mdi:calendar-arrow-right" },
@@ -105,6 +110,18 @@ test("uses the Home Assistant calendar date for today and tomorrow", () => {
     sensorModel(undefined, true, "Europe/Oslo", now).date,
     "Fredag 14. august",
   );
+});
+
+test("formats the Nordpool badge state as a Norwegian krone amount", () => {
+  assert.equal(badgeStateText({ state: "1.2" }), "1,20 kr");
+  assert.equal(badgeStateText({ state: "unavailable" }), "—");
+  assert.equal(badgeStateText(undefined), "—");
+});
+
+test("registers Nordpool Badge in the Home Assistant badge picker", () => {
+  assert.ok(customElements.get("nordpool-badge"));
+  assert.equal(context.window.customBadges.length, 1);
+  assert.equal(context.window.customBadges[0].name, "Nordpool Badge");
 });
 
 test("prefers authoritative time data from the Home Assistant backend", () => {

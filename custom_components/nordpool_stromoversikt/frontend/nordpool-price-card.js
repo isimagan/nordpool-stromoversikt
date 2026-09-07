@@ -1,6 +1,11 @@
 const CARD_TYPE = "nordpool-price-card";
 const CARD_NAME = "Nordpool priskort";
 const CARD_DOCS = "https://github.com/isimagan/nordpool-stromoversikt#nordpool-priskort";
+const BADGE_TYPE = "nordpool-badge";
+const BADGE_NAME = "Nordpool Badge";
+const BADGE_DOCS = "https://github.com/isimagan/nordpool-stromoversikt#nordpool-badge";
+const BADGE_LABEL = "Strømpris";
+const BADGE_ICON = "mdi:ab-testing";
 const INTEGRATION_DOMAIN = "nordpool_stromoversikt";
 const TOMORROW_SENSOR_ICON = "mdi:calendar-arrow-right";
 
@@ -330,6 +335,15 @@ function priceText(value) {
     minimumFractionDigits: 2,
     maximumFractionDigits: 2,
   })} kr`;
+}
+
+function badgeStateText(stateObj) {
+  if (!stateObj
+    || UNAVAILABLE_STATES.has(String(stateObj.state).toLowerCase())) {
+    return "—";
+  }
+
+  return priceText(Number(stateObj.state));
 }
 
 function displayConfig(config = {}) {
@@ -908,12 +922,127 @@ class NordpoolPriceCardEditor extends HTMLElement {
   }
 }
 
+class NordpoolBadge extends HTMLElement {
+  static getConfigElement() {
+    return document.createElement("nordpool-badge-editor");
+  }
+
+  static getStubConfig(hass) {
+    const entity = Object.keys(hass?.states ?? {})
+      .find((entityId) => isTodayState(hass.states[entityId]));
+    return entity ? { entity } : {};
+  }
+
+  constructor() {
+    super();
+    this.attachShadow({ mode: "open" });
+    this._hass = undefined;
+    this._config = undefined;
+  }
+
+  setConfig(config) {
+    this._config = { ...config };
+    this._render();
+  }
+
+  set hass(hass) {
+    this._hass = hass;
+    this._render();
+  }
+
+  _render() {
+    if (!this._config || !this._hass) return;
+
+    const stateObj = this._config.entity
+      ? this._hass.states[this._config.entity]
+      : undefined;
+
+    this.shadowRoot.innerHTML = `
+      <ha-badge aria-label="${BADGE_LABEL}">
+        <ha-icon slot="icon"></ha-icon>
+        <span class="state"></span>
+      </ha-badge>
+    `;
+
+    const badge = this.shadowRoot.querySelector("ha-badge");
+    badge.label = BADGE_LABEL;
+    this.shadowRoot.querySelector("ha-icon").icon = BADGE_ICON;
+    this.shadowRoot.querySelector(".state").textContent = badgeStateText(stateObj);
+  }
+}
+
+class NordpoolBadgeEditor extends HTMLElement {
+  constructor() {
+    super();
+    this.attachShadow({ mode: "open" });
+    this._config = {};
+    this._hass = undefined;
+  }
+
+  setConfig(config) {
+    this._config = { ...config };
+    this._render();
+  }
+
+  set hass(hass) {
+    this._hass = hass;
+    this._render();
+  }
+
+  _render() {
+    if (!this._hass) return;
+
+    if (!customElements.get("ha-entity-picker")) {
+      this.shadowRoot.innerHTML = `<p>Laster sensorvelger …</p>`;
+      customElements.whenDefined("ha-entity-picker").then(() => this._render());
+      return;
+    }
+
+    const entities = Object.entries(this._hass.states)
+      .filter(([, stateObj]) => isTodayState(stateObj))
+      .map(([entityId]) => entityId)
+      .sort((left, right) => left.localeCompare(right, "nb"));
+    if (this._config.entity && !entities.includes(this._config.entity)) {
+      entities.push(this._config.entity);
+    }
+
+    this.shadowRoot.innerHTML = `<ha-entity-picker></ha-entity-picker>`;
+    const picker = this.shadowRoot.querySelector("ha-entity-picker");
+    picker.hass = this._hass;
+    picker.value = this._config.entity || "";
+    picker.label = "Strømstøttesensor";
+    picker.helper = "Påkrevd · vises som strømpris i badgen";
+    picker.required = true;
+    picker.includeDomains = ["sensor"];
+    picker.includeEntities = entities;
+    picker.addEventListener("value-changed", (event) => {
+      const config = { ...this._config };
+      if (event.detail.value) config.entity = event.detail.value;
+      else delete config.entity;
+      this._config = config;
+      this.dispatchEvent(new CustomEvent("config-changed", {
+        detail: { config },
+        bubbles: true,
+        composed: true,
+      }));
+    });
+  }
+}
+
 if (!customElements.get(CARD_TYPE)) {
   customElements.define(CARD_TYPE, NordpoolPriceCard);
 }
 
 if (!customElements.get("nordpool-price-card-editor")) {
   customElements.define("nordpool-price-card-editor", NordpoolPriceCardEditor);
+}
+
+if (!customElements.get(BADGE_TYPE)) {
+  customElements.define(BADGE_TYPE, NordpoolBadge);
+}
+
+if (!customElements.get("nordpool-badge-editor")) {
+  customElements.define("nordpool-badge-editor", NordpoolBadgeEditor);
 }
 
 window.customCards = window.customCards || [];
@@ -928,6 +1057,23 @@ if (!window.customCards.some((card) => card.type === CARD_TYPE)) {
       const stateObj = hass.states[entityId];
       return isTodayState(stateObj)
         ? { config: { type: `custom:${CARD_TYPE}`, entity: entityId, ...DISPLAY_DEFAULTS } }
+        : null;
+    },
+  });
+}
+
+window.customBadges = window.customBadges || [];
+if (!window.customBadges.some((badge) => badge.type === BADGE_TYPE)) {
+  window.customBadges.push({
+    type: BADGE_TYPE,
+    name: BADGE_NAME,
+    description: "Viser gjeldende strømpris etter strømstøtte.",
+    preview: true,
+    documentationURL: BADGE_DOCS,
+    getEntitySuggestion: (hass, entityId) => {
+      const stateObj = hass.states[entityId];
+      return isTodayState(stateObj)
+        ? { config: { type: `custom:${BADGE_TYPE}`, entity: entityId } }
         : null;
     },
   });

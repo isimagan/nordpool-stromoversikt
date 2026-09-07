@@ -147,6 +147,20 @@ kanten og skyggen rundt kortet. Dette valget finnes bare i YAML og vises ikke i
 den visuelle veiviseren. `tomorrow_entity` kan utelates; da viser kortet bare
 dagens priser og dagsknappene skjules.
 
+## Nordpool Badge
+
+Integrasjonen legger også til **Nordpool Badge** i badgevelgeren for dashbord.
+Badgen følger Home Assistants standardutseende og viser strømstøttesensorens
+gjeldende verdi som `x kr`, med labelen **Strømpris** og ikonet
+`mdi:ab-testing`.
+
+Badgen kan legges til med YAML:
+
+```yaml
+type: custom:nordpool-badge
+entity: sensor.nordpool_stromstotte
+```
+
 Hvis Nord Pool ikke er installert, eller ingen Nord Pool-sensor finnes, må du
 installere og konfigurere Nord Pool før du kan fullføre oppsettet.
 
