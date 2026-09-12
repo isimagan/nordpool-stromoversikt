@@ -165,6 +165,11 @@ ikonvelgeren. En valgfri prisbasert bakgrunn går fra valgt farge for dagens
 billigste pris til valgt farge for dagens dyreste pris. Standardfargene er
 grønn og rød, og fargefeltene godtar egendefinerte CSS-farger.
 
+Badgen forsøker automatisk å bygge seg på nytt dersom Home Assistant rekker å
+vise «Custom element doesn't exist» før integrasjonens frontendressurs er
+ferdig lastet. Det gjør at badgen normalt kommer tilbake uten at dashboardet
+må lastes inn på nytt manuelt.
+
 Badgen kan legges til med YAML:
 
 ```yaml

@@ -4,6 +4,24 @@ Alle vesentlige endringer i Nordpool strømoversikt dokumenteres i denne filen.
 
 ## Neste versjon
 
+## 1.4.2 – 2026-09-13
+
+### Rettet
+
+- Nordpool Badge bygger seg automatisk på nytt dersom Home Assistant viser
+  «Custom element doesn't exist» fordi dashboardet ble lastet før
+  frontendressursen var ferdig registrert.
+
+## 1.4.1 – 2026-09-12
+
+### Lagt til
+
+- Lokale merkevareikoner for integrasjonen i HACS og Home Assistant.
+
+### Endret
+
+- Releasejobben validerer integrasjonen med HACS og Hassfest før publisering.
+
 ## 1.4.0 – 2026-09-08
 
 ### Lagt til

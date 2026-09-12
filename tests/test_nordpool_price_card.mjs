@@ -33,6 +33,7 @@ vm.runInContext(
     isBadgeEntity,
     isTomorrowEntity,
     NordpoolBadge,
+    recoverNordpoolBadges,
     sensorModel,
   };`,
   context,
@@ -47,6 +48,7 @@ const {
   isBadgeEntity,
   isTomorrowEntity,
   NordpoolBadge,
+  recoverNordpoolBadges,
   sensorModel,
 } = context.cardTest;
 const unavailableTomorrow = {
@@ -198,6 +200,35 @@ test("registers Nordpool Badge in the Home Assistant badge picker", () => {
   assert.ok(customElements.get("nordpool-badge"));
   assert.equal(context.window.customBadges.length, 1);
   assert.equal(context.window.customBadges[0].name, "Nordpool Badge");
+});
+
+test("rebuilds a Nordpool badge left in Home Assistant's error state", () => {
+  let loadCount = 0;
+  const failedBadge = {
+    config: { type: "custom:nordpool-badge" },
+    load: () => { loadCount += 1; },
+    querySelector: (selector) => (
+      selector === "hui-error-badge" ? { localName: selector } : null
+    ),
+  };
+  const healthyBadge = {
+    config: { type: "custom:nordpool-badge" },
+    load: () => { loadCount += 1; },
+    querySelector: () => null,
+  };
+  const badgeRoot = {
+    querySelectorAll: (selector) => (
+      selector === "hui-badge" ? [failedBadge, healthyBadge] : []
+    ),
+  };
+  const root = {
+    querySelectorAll: (selector) => (
+      selector === "*" ? [{ shadowRoot: badgeRoot }] : []
+    ),
+  };
+
+  assert.equal(recoverNordpoolBadges(root), 1);
+  assert.equal(loadCount, 1);
 });
 
 test("prefers authoritative time data from the Home Assistant backend", () => {

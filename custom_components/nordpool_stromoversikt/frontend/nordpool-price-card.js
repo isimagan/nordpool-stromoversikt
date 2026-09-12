@@ -1259,6 +1259,57 @@ class NordpoolBadgeEditor extends HTMLElement {
   }
 }
 
+function shadowRoots(root) {
+  if (!root || typeof root.querySelectorAll !== "function") return [];
+
+  const roots = [root];
+  const seen = new Set(roots);
+  for (let index = 0; index < roots.length; index += 1) {
+    for (const element of roots[index].querySelectorAll("*")) {
+      if (element.shadowRoot && !seen.has(element.shadowRoot)) {
+        seen.add(element.shadowRoot);
+        roots.push(element.shadowRoot);
+      }
+    }
+  }
+  return roots;
+}
+
+function recoverNordpoolBadges(root = document) {
+  let recovered = 0;
+  for (const searchRoot of shadowRoots(root)) {
+    for (const badge of searchRoot.querySelectorAll("hui-badge")) {
+      const isNordpoolBadge = badge.config?.type === `custom:${BADGE_TYPE}`;
+      const hasLoadError = badge.querySelector?.("hui-error-badge");
+      if (!isNordpoolBadge || !hasLoadError || typeof badge.load !== "function") {
+        continue;
+      }
+
+      try {
+        badge.load();
+        recovered += 1;
+      } catch (error) {
+        console.debug("Nordpool Badge kunne ikke bygges på nytt ennå", error);
+      }
+    }
+  }
+  return recovered;
+}
+
+function scheduleBadgeRecovery() {
+  if (typeof document === "undefined"
+    || !document.documentElement
+    || typeof window.setTimeout !== "function") {
+    return;
+  }
+
+  // Home Assistant laster custom-ressurser uten å vente før badgevisningen
+  // bygges. Forsøk på nytt både før og etter frontendens feiltidsavbrudd.
+  for (const delay of [0, 250, 1000, 2500, 5000, 10000]) {
+    window.setTimeout(() => recoverNordpoolBadges(document), delay);
+  }
+}
+
 if (!customElements.get(CARD_TYPE)) {
   customElements.define(CARD_TYPE, NordpoolPriceCard);
 }
@@ -1273,6 +1324,11 @@ if (!customElements.get(BADGE_TYPE)) {
 
 if (!customElements.get("nordpool-badge-editor")) {
   customElements.define("nordpool-badge-editor", NordpoolBadgeEditor);
+}
+
+scheduleBadgeRecovery();
+if (typeof window.addEventListener === "function") {
+  window.addEventListener("location-changed", scheduleBadgeRecovery);
 }
 
 window.customCards = window.customCards || [];
