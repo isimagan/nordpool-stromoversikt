@@ -6,6 +6,7 @@ on:
       - master
     paths:
       - "custom_components/nordpool_stromoversikt/manifest.json"
+      - "custom_components/nordpool_stromoversikt/brand/**"
       - ".github/workflows/release.yml"
   workflow_dispatch:
 
