@@ -169,8 +169,9 @@ av eller på med en bryter.
 
 Badgen forsøker automatisk å bygge seg på nytt dersom Home Assistant rekker å
 vise «Custom element doesn't exist» før integrasjonens frontendressurs er
-ferdig lastet. Det gjør at badgen normalt kommer tilbake uten at dashboardet
-må lastes inn på nytt manuelt.
+ferdig lastet. Badgevelgeren lastes også på nytt dersom Nordpool Badge blir
+stående med en lastesirkel. Det gjør at badgen normalt kommer tilbake uten at
+dashboardet må lastes inn på nytt manuelt.
 
 Badgen kan legges til med YAML:
 

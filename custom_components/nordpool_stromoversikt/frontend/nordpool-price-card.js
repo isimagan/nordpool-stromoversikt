@@ -23,6 +23,7 @@ const BADGE_PRICE_COLORS = {
 };
 const INTEGRATION_DOMAIN = "nordpool_stromoversikt";
 const TOMORROW_SENSOR_ICON = "mdi:calendar-arrow-right";
+const RECOVERED_BADGE_PICKERS = new WeakSet();
 
 const SVG_NS = "http://www.w3.org/2000/svg";
 const UNAVAILABLE_STATES = new Set(["unknown", "unavailable", "none", ""]);
@@ -1320,6 +1321,33 @@ function recoverNordpoolBadges(root = document) {
   return recovered;
 }
 
+function recoverNordpoolBadgePickers(root = document) {
+  if (!customElements.get(BADGE_TYPE)) return 0;
+
+  let recovered = 0;
+  for (const searchRoot of shadowRoots(root)) {
+    for (const picker of searchRoot.querySelectorAll("hui-badge-picker")) {
+      const stalled = picker.shadowRoot?.querySelector(".badge.spinner");
+      if (!stalled
+        || RECOVERED_BADGE_PICKERS.has(picker)
+        || typeof picker._loadBages !== "function") {
+        continue;
+      }
+
+      try {
+        // Home Assistant beholder en avvist getBadgeStubConfig-promise i
+        // velgeren. Bygg listen på nytt når custom-elementet er registrert.
+        picker._loadBages();
+        RECOVERED_BADGE_PICKERS.add(picker);
+        recovered += 1;
+      } catch (error) {
+        console.debug("Nordpool Badge-velgeren kunne ikke lastes på nytt", error);
+      }
+    }
+  }
+  return recovered;
+}
+
 function scheduleBadgeRecovery() {
   if (typeof document === "undefined"
     || !document.documentElement
@@ -1330,7 +1358,10 @@ function scheduleBadgeRecovery() {
   // Home Assistant laster custom-ressurser uten å vente før badgevisningen
   // bygges. Forsøk på nytt både før og etter frontendens feiltidsavbrudd.
   for (const delay of [0, 250, 1000, 2500, 5000, 10000]) {
-    window.setTimeout(() => recoverNordpoolBadges(document), delay);
+    window.setTimeout(() => {
+      recoverNordpoolBadges(document);
+      recoverNordpoolBadgePickers(document);
+    }, delay);
   }
 }
 

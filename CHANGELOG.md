@@ -4,6 +4,13 @@ Alle vesentlige endringer i Nordpool strømoversikt dokumenteres i denne filen.
 
 ## Neste versjon
 
+## 1.4.2.1 – 2026-09-13
+
+### Rettet
+
+- Badgevelgeren laster listen på nytt dersom Nordpool Badge blir stående med
+  en lastesirkel etter Home Assistants tidsavbrudd for custom-elementer.
+
 ## 1.4.2 – 2026-09-13
 
 ### Endret
