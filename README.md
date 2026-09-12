@@ -162,8 +162,10 @@ vises, blir labelen `Pris · 15:00-16:00`.
 
 Ikonet følger den valgte entiteten som standard, men kan overstyres i
 ikonvelgeren. Et overstyrt ikon beholdes når entiteten byttes. En valgfri
-prisbasert bakgrunn går fra grønn for dagens billigste pris til rød for dagens
-dyreste pris, og slås av eller på med en bryter.
+prisbasert bakgrunn bruker Excels standardfarger for positive og negative
+celler: lysegrønn for dagens billigste pris og lyserød for dagens dyreste pris.
+Tekst og ikon følger den tilhørende mørke grønn-til-rød-skalaen. Bakgrunnen slås
+av eller på med en bryter.
 
 Badgen forsøker automatisk å bygge seg på nytt dersom Home Assistant rekker å
 vise «Custom element doesn't exist» før integrasjonens frontendressurs er

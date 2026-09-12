@@ -25,8 +25,10 @@ const context = vm.createContext({
 
 vm.runInContext(
   `${source}\n;globalThis.cardTest = {
+    applyBadgePriceColors,
     badgeBackground,
     badgeEntityConfig,
+    badgeForeground,
     badgeLabel,
     badgeStateText,
     badgeTimeRange,
@@ -41,8 +43,10 @@ vm.runInContext(
 );
 
 const {
+  applyBadgePriceColors,
   badgeBackground,
   badgeEntityConfig,
+  badgeForeground,
   badgeLabel,
   badgeStateText,
   badgeTimeRange,
@@ -166,19 +170,31 @@ test("colors the badge between the cheapest and most expensive prices", () => {
 
   assert.equal(
     badgeBackground({ state: "0", attributes: { idag: [0, 1, 2] } }, config),
-    "green",
+    "#C6EFCE",
   );
   assert.equal(
     badgeBackground({ state: "1", attributes: { idag: [0, 1, 2] } }, config),
-    "color-mix(in srgb, green 50%, red)",
+    "color-mix(in srgb, #C6EFCE 50%, #FFC7CE)",
   );
   assert.equal(
     badgeBackground({ state: "2", attributes: { today: [0, 1, 2] } }, config),
-    "red",
+    "#FFC7CE",
   );
   assert.equal(
     badgeBackground({ state: "1", attributes: { idag: [0, 1, 2] } }, {}),
     undefined,
+  );
+  assert.equal(
+    badgeForeground({ state: "0", attributes: { idag: [0, 1, 2] } }, config),
+    "#006100",
+  );
+  assert.equal(
+    badgeForeground({ state: "1", attributes: { idag: [0, 1, 2] } }, config),
+    "color-mix(in srgb, #006100 50%, #9C0006)",
+  );
+  assert.equal(
+    badgeForeground({ state: "2", attributes: { idag: [0, 1, 2] } }, config),
+    "#9C0006",
   );
 });
 
@@ -195,6 +211,26 @@ test("keeps a custom icon when the badge entity changes", () => {
   assert.equal(changed.icon, "mdi:lightning-bolt");
   assert.equal(changed.unit, "kr");
   assert.equal(config.entity, "sensor.old");
+});
+
+test("applies the price color to badge text and icon", () => {
+  const properties = new Map();
+  const badge = {
+    style: {
+      setProperty: (name, value) => properties.set(name, value),
+    },
+  };
+
+  applyBadgePriceColors(
+    badge,
+    { state: "0", attributes: { idag: [0, 1, 2] } },
+    { show_background: true },
+  );
+
+  assert.equal(properties.get("--ha-card-background"), "#C6EFCE");
+  assert.equal(properties.get("--primary-text-color"), "#006100");
+  assert.equal(properties.get("--secondary-text-color"), "#006100");
+  assert.equal(properties.get("--badge-color"), "#006100");
 });
 
 test("offers Nord Pool and strømstøtte sensors in the badge editor", () => {

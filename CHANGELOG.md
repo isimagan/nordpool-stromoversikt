@@ -10,8 +10,9 @@ Alle vesentlige endringer i Nordpool strømoversikt dokumenteres i denne filen.
 
 - Badgeveiviseren samler valgene **Pris** og **Nåværende time** under
   **Navn**.
-- Prisbasert bakgrunn slås nå av eller på med en bryter og bruker faste farger:
-  grønn for billigst og rød for dyrest.
+- Prisbasert bakgrunn slås nå av eller på med en bryter og bruker Excels
+  positive og negative cellefarger. Tekst og ikon følger den tilsvarende mørke
+  grønn-til-rød-skalaen.
 - Et egendefinert badgeikon beholdes når prissensoren byttes.
 
 ### Rettet

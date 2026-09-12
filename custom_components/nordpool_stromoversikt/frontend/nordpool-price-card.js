@@ -11,9 +11,15 @@ const BADGE_DEFAULTS = {
   show_background: false,
   unit: BADGE_UNITS[0],
 };
-const BADGE_BACKGROUND_COLORS = {
-  cheapest: "green",
-  mostExpensive: "red",
+const BADGE_PRICE_COLORS = {
+  cheapest: {
+    background: "#C6EFCE",
+    foreground: "#006100",
+  },
+  mostExpensive: {
+    background: "#FFC7CE",
+    foreground: "#9C0006",
+  },
 };
 const INTEGRATION_DOMAIN = "nordpool_stromoversikt";
 const TOMORROW_SENSOR_ICON = "mdi:calendar-arrow-right";
@@ -398,7 +404,7 @@ function isBadgeEntity(hass, entityId, stateObj) {
     || isNordpoolSourceEntity(hass, entityId, stateObj);
 }
 
-function badgeBackground(stateObj, config = {}) {
+function badgePricePosition(stateObj, config = {}) {
   const display = badgeConfig(config);
   if (!display.show_background || !stateObj) return undefined;
 
@@ -410,14 +416,41 @@ function badgeBackground(stateObj, config = {}) {
 
   const minimum = Math.min(...prices);
   const maximum = Math.max(...prices);
-  const position = maximum === minimum
+  return maximum === minimum
     ? 0
     : Math.min(1, Math.max(0, (currentPrice - minimum) / (maximum - minimum)));
-  if (position === 0) return BADGE_BACKGROUND_COLORS.cheapest;
-  if (position === 1) return BADGE_BACKGROUND_COLORS.mostExpensive;
+}
+
+function badgePriceColor(stateObj, config, colorType) {
+  const position = badgePricePosition(stateObj, config);
+  if (position === undefined) return undefined;
+
+  const cheapest = BADGE_PRICE_COLORS.cheapest[colorType];
+  const mostExpensive = BADGE_PRICE_COLORS.mostExpensive[colorType];
+  if (position === 0) return cheapest;
+  if (position === 1) return mostExpensive;
 
   const cheapestShare = Math.round((1 - position) * 10000) / 100;
-  return `color-mix(in srgb, ${BADGE_BACKGROUND_COLORS.cheapest} ${cheapestShare}%, ${BADGE_BACKGROUND_COLORS.mostExpensive})`;
+  return `color-mix(in srgb, ${cheapest} ${cheapestShare}%, ${mostExpensive})`;
+}
+
+function badgeBackground(stateObj, config = {}) {
+  return badgePriceColor(stateObj, config, "background");
+}
+
+function badgeForeground(stateObj, config = {}) {
+  return badgePriceColor(stateObj, config, "foreground");
+}
+
+function applyBadgePriceColors(badge, stateObj, config = {}) {
+  const background = badgeBackground(stateObj, config);
+  const foreground = badgeForeground(stateObj, config);
+  if (background) badge.style.setProperty("--ha-card-background", background);
+  if (!foreground) return;
+
+  badge.style.setProperty("--primary-text-color", foreground);
+  badge.style.setProperty("--secondary-text-color", foreground);
+  badge.style.setProperty("--badge-color", foreground);
 }
 
 function displayConfig(config = {}) {
@@ -1057,8 +1090,7 @@ class NordpoolBadge extends HTMLElement {
       "aria-label",
       [label, badgeStateText(stateObj, display.unit)].filter(Boolean).join(" "),
     );
-    const background = badgeBackground(stateObj, this._config);
-    if (background) badge.style.setProperty("--ha-card-background", background);
+    applyBadgePriceColors(badge, stateObj, this._config);
 
     const icon = this.shadowRoot.querySelector("ha-state-icon");
     icon.stateObj = stateObj;
