@@ -6,6 +6,14 @@ Alle vesentlige endringer i Nordpool strømoversikt dokumenteres i denne filen.
 
 ## 1.4.2 – 2026-09-13
 
+### Endret
+
+- Badgeveiviseren samler valgene **Pris** og **Nåværende time** under
+  **Navn**.
+- Prisbasert bakgrunn slås nå av eller på med en bryter og bruker faste farger:
+  grønn for billigst og rød for dyrest.
+- Et egendefinert badgeikon beholdes når prissensoren byttes.
+
 ### Rettet
 
 - Nordpool Badge bygger seg automatisk på nytt dersom Home Assistant viser

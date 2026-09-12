@@ -155,15 +155,15 @@ opprinnelige Nord Pool-sensoren eller integrasjonens strømstøttesensor;
 strømstøttesensoren er standardvalget. Sensorens tilstand vises uten den
 opprinnelige enheten, etterfulgt av valgt enhet: `kr` eller `kWh/NOK`.
 
-Veiviseren har separate avkrysningsbokser for **Pris** og **Tidsrom** i
-labelen. Bare **Pris** er slått på som standard. Tidsrommet viser den hele
-klokketimen nå er innenfor, for eksempel `15:00-16:00`. Når begge vises, blir
-labelen `Pris · 15:00-16:00`.
+Under **Navn** har veiviseren separate avkrysningsbokser for **Pris** og
+**Nåværende time**. Bare **Pris** er slått på som standard. Tidsrommet viser
+den hele klokketimen nå er innenfor, for eksempel `15:00-16:00`. Når begge
+vises, blir labelen `Pris · 15:00-16:00`.
 
 Ikonet følger den valgte entiteten som standard, men kan overstyres i
-ikonvelgeren. En valgfri prisbasert bakgrunn går fra valgt farge for dagens
-billigste pris til valgt farge for dagens dyreste pris. Standardfargene er
-grønn og rød, og fargefeltene godtar egendefinerte CSS-farger.
+ikonvelgeren. Et overstyrt ikon beholdes når entiteten byttes. En valgfri
+prisbasert bakgrunn går fra grønn for dagens billigste pris til rød for dagens
+dyreste pris, og slås av eller på med en bryter.
 
 Badgen forsøker automatisk å bygge seg på nytt dersom Home Assistant rekker å
 vise «Custom element doesn't exist» før integrasjonens frontendressurs er
@@ -178,8 +178,6 @@ entity: sensor.nordpool_stromstotte
 show_price: true
 show_time_range: false
 show_background: false
-cheapest_color: green
-most_expensive_color: red
 unit: kr
 # icon: mdi:cash-refund
 ```

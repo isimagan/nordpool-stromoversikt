@@ -9,9 +9,11 @@ const BADGE_DEFAULTS = {
   show_price: true,
   show_time_range: false,
   show_background: false,
-  cheapest_color: "green",
-  most_expensive_color: "red",
   unit: BADGE_UNITS[0],
+};
+const BADGE_BACKGROUND_COLORS = {
+  cheapest: "green",
+  mostExpensive: "red",
 };
 const INTEGRATION_DOMAIN = "nordpool_stromoversikt";
 const TOMORROW_SENSOR_ICON = "mdi:calendar-arrow-right";
@@ -349,11 +351,15 @@ function badgeConfig(config = {}) {
     show_price: config.show_price !== false,
     show_time_range: config.show_time_range === true,
     show_background: config.show_background === true,
-    cheapest_color: config.cheapest_color || BADGE_DEFAULTS.cheapest_color,
-    most_expensive_color: config.most_expensive_color
-      || BADGE_DEFAULTS.most_expensive_color,
     unit: BADGE_UNITS.includes(config.unit) ? config.unit : BADGE_DEFAULTS.unit,
   };
+}
+
+function badgeEntityConfig(config, entity) {
+  const nextConfig = { ...config };
+  if (entity) nextConfig.entity = entity;
+  else delete nextConfig.entity;
+  return nextConfig;
 }
 
 function badgeStateText(stateObj, unit = BADGE_DEFAULTS.unit) {
@@ -407,11 +413,11 @@ function badgeBackground(stateObj, config = {}) {
   const position = maximum === minimum
     ? 0
     : Math.min(1, Math.max(0, (currentPrice - minimum) / (maximum - minimum)));
-  if (position === 0) return display.cheapest_color;
-  if (position === 1) return display.most_expensive_color;
+  if (position === 0) return BADGE_BACKGROUND_COLORS.cheapest;
+  if (position === 1) return BADGE_BACKGROUND_COLORS.mostExpensive;
 
   const cheapestShare = Math.round((1 - position) * 10000) / 100;
-  return `color-mix(in srgb, ${display.cheapest_color} ${cheapestShare}%, ${display.most_expensive_color})`;
+  return `color-mix(in srgb, ${BADGE_BACKGROUND_COLORS.cheapest} ${cheapestShare}%, ${BADGE_BACKGROUND_COLORS.mostExpensive})`;
 }
 
 function displayConfig(config = {}) {
@@ -1088,8 +1094,8 @@ class NordpoolBadgeEditor extends HTMLElement {
     const requiredElements = [
       "ha-entity-picker",
       "ha-icon-picker",
-      "ha-color-picker",
       "ha-select",
+      "ha-switch",
     ];
     const missingElement = requiredElements.find((name) => !customElements.get(name));
     if (missingElement) {
@@ -1114,9 +1120,13 @@ class NordpoolBadgeEditor extends HTMLElement {
         :host { display: block; padding: 8px 0; }
         ha-entity-picker,
         ha-icon-picker,
-        ha-color-picker,
         ha-select { display: block; width: 100%; margin-top: 16px; }
-        fieldset { margin: 18px 0 0; padding: 0; border: 0; }
+        fieldset {
+          margin: 18px 0 0;
+          padding: 10px 14px 12px;
+          border: 1px solid var(--divider-color);
+          border-radius: 12px;
+        }
         legend {
           margin-bottom: 9px;
           color: var(--primary-text-color);
@@ -1138,31 +1148,33 @@ class NordpoolBadgeEditor extends HTMLElement {
           margin: 0;
           accent-color: var(--primary-color);
         }
-        .colors[hidden] { display: none; }
+        .switch-option {
+          display: flex;
+          align-items: center;
+          justify-content: space-between;
+          gap: 16px;
+          margin-top: 18px;
+          color: var(--primary-text-color);
+          font-size: 14px;
+          cursor: pointer;
+        }
       </style>
       <ha-entity-picker></ha-entity-picker>
       <fieldset class="label-options">
-        <legend>Label</legend>
+        <legend>Navn</legend>
         <label class="option">
           <input type="checkbox" data-option="show_price">
           Pris
         </label>
         <label class="option">
           <input type="checkbox" data-option="show_time_range">
-          Tidsrom
+          Nåværende time
         </label>
       </fieldset>
-      <fieldset class="background-options">
-        <legend>Bakgrunn</legend>
-        <label class="option">
-          <input type="checkbox" data-option="show_background">
-          Vis prisbasert bakgrunn
-        </label>
-        <div class="colors"${display.show_background ? "" : " hidden"}>
-          <ha-color-picker class="cheapest-color"></ha-color-picker>
-          <ha-color-picker class="most-expensive-color"></ha-color-picker>
-        </div>
-      </fieldset>
+      <label class="switch-option">
+        <span>Vis prisbasert bakgrunn</span>
+        <ha-switch class="background-switch"></ha-switch>
+      </label>
       <ha-icon-picker></ha-icon-picker>
       <ha-select></ha-select>
     `;
@@ -1175,9 +1187,7 @@ class NordpoolBadgeEditor extends HTMLElement {
     picker.includeDomains = ["sensor"];
     picker.includeEntities = entities;
     picker.addEventListener("value-changed", (event) => {
-      const config = { ...this._config };
-      if (event.detail.value) config.entity = event.detail.value;
-      else delete config.entity;
+      const config = badgeEntityConfig(this._config, event.detail.value);
       this._config = config;
       this.dispatchEvent(new CustomEvent("config-changed", {
         detail: { config },
@@ -1191,31 +1201,13 @@ class NordpoolBadgeEditor extends HTMLElement {
       checkbox.checked = display[option];
       checkbox.addEventListener("change", () => {
         this._changeConfig({ [option]: checkbox.checked });
-        if (option === "show_background") this._render();
       });
     }
 
-    const cheapestColor = this.shadowRoot.querySelector(".cheapest-color");
-    cheapestColor.value = display.cheapest_color;
-    cheapestColor.defaultColor = BADGE_DEFAULTS.cheapest_color;
-    cheapestColor.label = "Bakgrunnsfarge for billigst";
-    cheapestColor.addEventListener("value-changed", (event) => {
-      this._changeConfig({
-        cheapest_color: event.detail.value || BADGE_DEFAULTS.cheapest_color,
-      });
-    });
-
-    const mostExpensiveColor = this.shadowRoot.querySelector(
-      ".most-expensive-color",
-    );
-    mostExpensiveColor.value = display.most_expensive_color;
-    mostExpensiveColor.defaultColor = BADGE_DEFAULTS.most_expensive_color;
-    mostExpensiveColor.label = "Bakgrunnsfarge for dyrest";
-    mostExpensiveColor.addEventListener("value-changed", (event) => {
-      this._changeConfig({
-        most_expensive_color: event.detail.value
-          || BADGE_DEFAULTS.most_expensive_color,
-      });
+    const backgroundSwitch = this.shadowRoot.querySelector(".background-switch");
+    backgroundSwitch.checked = display.show_background;
+    backgroundSwitch.addEventListener("change", () => {
+      this._changeConfig({ show_background: backgroundSwitch.checked });
     });
 
     const selectedState = this._config.entity

@@ -26,6 +26,7 @@ const context = vm.createContext({
 vm.runInContext(
   `${source}\n;globalThis.cardTest = {
     badgeBackground,
+    badgeEntityConfig,
     badgeLabel,
     badgeStateText,
     badgeTimeRange,
@@ -41,6 +42,7 @@ vm.runInContext(
 
 const {
   badgeBackground,
+  badgeEntityConfig,
   badgeLabel,
   badgeStateText,
   badgeTimeRange,
@@ -158,8 +160,8 @@ test("builds the badge label from price and the current whole hour", () => {
 test("colors the badge between the cheapest and most expensive prices", () => {
   const config = {
     show_background: true,
-    cheapest_color: "green",
-    most_expensive_color: "red",
+    cheapest_color: "blue",
+    most_expensive_color: "orange",
   };
 
   assert.equal(
@@ -178,6 +180,21 @@ test("colors the badge between the cheapest and most expensive prices", () => {
     badgeBackground({ state: "1", attributes: { idag: [0, 1, 2] } }, {}),
     undefined,
   );
+});
+
+test("keeps a custom icon when the badge entity changes", () => {
+  const config = {
+    entity: "sensor.old",
+    icon: "mdi:lightning-bolt",
+    unit: "kr",
+  };
+
+  const changed = badgeEntityConfig(config, "sensor.new");
+
+  assert.equal(changed.entity, "sensor.new");
+  assert.equal(changed.icon, "mdi:lightning-bolt");
+  assert.equal(changed.unit, "kr");
+  assert.equal(config.entity, "sensor.old");
 });
 
 test("offers Nord Pool and strømstøtte sensors in the badge editor", () => {
