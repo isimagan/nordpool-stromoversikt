@@ -36,6 +36,7 @@ vm.runInContext(
     isBadgeEntity,
     isTomorrowEntity,
     NordpoolBadge,
+    recoverNordpoolBadgePickers,
     recoverNordpoolBadges,
     sensorModel,
   };`,
@@ -54,6 +55,7 @@ const {
   isBadgeEntity,
   isTomorrowEntity,
   NordpoolBadge,
+  recoverNordpoolBadgePickers,
   recoverNordpoolBadges,
   sensorModel,
 } = context.cardTest;
@@ -281,6 +283,27 @@ test("rebuilds a Nordpool badge left in Home Assistant's error state", () => {
   };
 
   assert.equal(recoverNordpoolBadges(root), 1);
+  assert.equal(loadCount, 1);
+});
+
+test("reloads a badge picker left on a spinner after the load race", () => {
+  let loadCount = 0;
+  const picker = {
+    shadowRoot: {
+      querySelector: (selector) => (
+        selector === ".badge.spinner" ? { localName: "ha-spinner" } : null
+      ),
+    },
+    _loadBages: () => { loadCount += 1; },
+  };
+  const root = {
+    querySelectorAll: (selector) => (
+      selector === "hui-badge-picker" ? [picker] : []
+    ),
+  };
+
+  assert.equal(recoverNordpoolBadgePickers(root), 1);
+  assert.equal(recoverNordpoolBadgePickers(root), 0);
   assert.equal(loadCount, 1);
 });
 
