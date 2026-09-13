@@ -4,6 +4,7 @@ const CARD_DOCS = "https://github.com/isimagan/nordpool-stromoversikt#nordpool-p
 const BADGE_TYPE = "nordpool-badge";
 const BADGE_NAME = "Nordpool Badge";
 const BADGE_DOCS = "https://github.com/isimagan/nordpool-stromoversikt#nordpool-badge";
+const MORE_INFO_DIALOG_TYPE = "nordpool-price-more-info";
 const BADGE_UNITS = ["kr", "NOK/kWh"];
 const BADGE_DEFAULTS = {
   show_price: true,
@@ -412,6 +413,40 @@ function isBadgeEntity(hass, entityId, stateObj) {
     || isNordpoolSourceEntity(hass, entityId, stateObj);
 }
 
+function supportEntityFor(hass, entityId) {
+  const selectedState = hass?.states?.[entityId];
+  if (isTodayState(selectedState)) return entityId;
+  if (!isNordpoolSourceEntity(hass, entityId, selectedState)) return undefined;
+
+  return Object.entries(hass?.states ?? {}).find(([, stateObj]) => (
+    isTodayState(stateObj)
+    && stateObj.attributes?.kildesensor === entityId
+  ))?.[0];
+}
+
+function tomorrowEntityFor(hass, sourceEntityId) {
+  if (!sourceEntityId) return undefined;
+  return Object.entries(hass?.states ?? {}).find(([entityId, stateObj]) => (
+    isTomorrowEntity(hass, entityId, stateObj)
+    && stateObj.attributes?.kildesensor === sourceEntityId
+  ))?.[0];
+}
+
+function badgePriceState(hass, entityId) {
+  const supportEntity = supportEntityFor(hass, entityId);
+  if (!supportEntity) return undefined;
+
+  const supportState = hass.states[supportEntity];
+  if (entityId === supportEntity) return supportState;
+  return {
+    ...supportState,
+    attributes: {
+      ...supportState.attributes,
+      idag: supportState.attributes.original,
+    },
+  };
+}
+
 function badgePriceCategory(
   stateObj,
   config = {},
@@ -461,8 +496,40 @@ function applyBadgePriceColors(badge, stateObj, config = {}, timeZone) {
   badge.style.setProperty("--badge-color", foreground);
 }
 
-function showEntityMoreInfo(target, entityId) {
+function moreInfoCardConfig(hass, entityId) {
+  const supportEntity = supportEntityFor(hass, entityId);
+  if (!supportEntity) return undefined;
+
+  const supportState = hass.states[supportEntity];
+  const sourceEntity = supportState.attributes?.kildesensor;
+  const originalPrices = entityId !== supportEntity;
+  const tomorrowEntity = tomorrowEntityFor(hass, sourceEntity);
+  return {
+    entity: supportEntity,
+    ...(tomorrowEntity ? { tomorrow_entity: tomorrowEntity } : {}),
+    ...DISPLAY_DEFAULTS,
+    show_line: !originalPrices,
+    show_border: false,
+    price_mode: originalPrices ? "original" : "supported",
+  };
+}
+
+function showEntityMoreInfo(target, hass, entityId) {
   if (!entityId) return false;
+
+  const config = moreInfoCardConfig(hass, entityId);
+  if (config) {
+    target.dispatchEvent(new CustomEvent("show-dialog", {
+      detail: {
+        dialogTag: MORE_INFO_DIALOG_TYPE,
+        dialogImport: async () => undefined,
+        dialogParams: { entityId, config },
+      },
+      bubbles: true,
+      composed: true,
+    }));
+    return true;
+  }
 
   target.dispatchEvent(new CustomEvent("hass-more-info", {
     detail: { entityId },
@@ -502,23 +569,32 @@ function cardLayout(config = {}) {
   return { cardSize: compactRows, gridRows: compactRows };
 }
 
-function sensorModel(stateObj, isTomorrow = false, timeZone, now = new Date()) {
+function sensorModel(
+  stateObj,
+  isTomorrow = false,
+  timeZone,
+  now = new Date(),
+  priceMode = "supported",
+) {
   const attrs = stateObj?.attributes ?? {};
-  const supported = numberList(isTomorrow ? attrs.stotte : attrs.idag);
+  const supportedPrices = numberList(isTomorrow ? attrs.stotte : attrs.idag);
   const original = numberList(isTomorrow ? attrs.pris : attrs.original);
-  const validLength = supported.length >= 23 && supported.length <= 25;
+  const primary = priceMode === "original" ? original : supportedPrices;
+  const validLength = primary.length >= 23 && primary.length <= 25;
   const available = Boolean(stateObj)
     && !UNAVAILABLE_STATES.has(String(stateObj.state).toLowerCase())
     && validLength
-    && supported.length === original.length;
+    && supportedPrices.length === original.length;
 
   const haTime = homeAssistantTime(now, attrs.tidssone || timeZone);
   const backendDate = calendarDate(attrs.dato);
   const backendHour = Number(attrs.gjeldende_time);
 
-  let average = Number(isTomorrow ? stateObj?.state : attrs.snittpris);
-  if (!Number.isFinite(average) && supported.length) {
-    average = supported.reduce((sum, value) => sum + value, 0) / supported.length;
+  let average = priceMode === "original"
+    ? Number(isTomorrow ? attrs.snitt : NaN)
+    : Number(isTomorrow ? stateObj?.state : attrs.snittpris);
+  if (!Number.isFinite(average) && primary.length) {
+    average = primary.reduce((sum, value) => sum + value, 0) / primary.length;
   }
 
   const currentHour = !isTomorrow && available
@@ -526,7 +602,7 @@ function sensorModel(stateObj, isTomorrow = false, timeZone, now = new Date()) {
       Number.isInteger(backendHour) && backendHour >= 0 && backendHour <= 23
         ? backendHour
         : haTime.hour,
-      supported.length - 1,
+      primary.length - 1,
     )
     : null;
 
@@ -536,9 +612,15 @@ function sensorModel(stateObj, isTomorrow = false, timeZone, now = new Date()) {
       backendDate || haTime,
       backendDate ? 0 : (isTomorrow ? 1 : 0),
     ),
-    supported: available ? supported : [],
+    supported: available ? primary : [],
     original: available ? original : [],
     average,
+    averageLabel: priceMode === "original"
+      ? "Snittpris"
+      : "Snitt etter støtte",
+    primaryLabel: priceMode === "original"
+      ? "Uten strømstøtte"
+      : "Etter strømstøtte",
     currentHour,
     available,
   };
@@ -621,6 +703,8 @@ class NordpoolPriceCard extends HTMLElement {
       stateObj,
       isTomorrow,
       this._hass.config?.time_zone,
+      undefined,
+      this._config.price_mode,
     );
     const display = displayConfig(this._config);
     const showHead = display.show_date || display.show_heading || display.show_mean;
@@ -641,7 +725,7 @@ class NordpoolPriceCard extends HTMLElement {
             ${display.show_heading ? `<h2>${model.title}</h2>` : ""}
           </div>` : ""}
           ${display.show_mean ? `<div class="average">
-            <span class="eyebrow">Snitt etter støtte</span>
+            <span class="eyebrow">${model.averageLabel}</span>
             <strong>${model.available ? priceText(model.average) : "Kommer"}</strong>
           </div>` : ""}
         </div>` : ""}
@@ -650,7 +734,7 @@ class NordpoolPriceCard extends HTMLElement {
         </div>` : ""}
         ${showFooter ? `<div class="legend">
           ${showDescription && display.show_bars
-            ? `<span class="legend-item"><i class="legend-bar"></i>Etter strømstøtte</span>`
+            ? `<span class="legend-item"><i class="legend-bar"></i>${model.primaryLabel}</span>`
             : ""}
           ${showDescription && display.show_line
             ? `<span class="legend-item"><i class="legend-line"></i>Uten strømstøtte</span>`
@@ -849,7 +933,7 @@ class NordpoolPriceCard extends HTMLElement {
         tooltip.innerHTML = `
           <strong>${start}:00–${stop}:00</strong>
           ${display.show_bars
-            ? `<span class="tooltip-row">Etter støtte <b>${priceText(model.supported[index])}</b></span>`
+            ? `<span class="tooltip-row">${model.primaryLabel} <b>${priceText(model.supported[index])}</b></span>`
             : ""}
           ${display.show_line
             ? `<span class="tooltip-row">Uten støtte <b>${priceText(value)}</b></span>`
@@ -1091,8 +1175,10 @@ class NordpoolBadge extends HTMLElement {
     const stateObj = this._config.entity
       ? this._hass.states[this._config.entity]
       : undefined;
+    const priceStateObj = badgePriceState(this._hass, this._config.entity);
     const display = badgeConfig(this._config);
-    const timeZone = stateObj?.attributes?.tidssone
+    const timeZone = priceStateObj?.attributes?.tidssone
+      || stateObj?.attributes?.tidssone
       || this._hass.config?.time_zone;
     const label = badgeLabel(this._config, timeZone);
 
@@ -1110,14 +1196,14 @@ class NordpoolBadge extends HTMLElement {
       "aria-label",
       [label, badgeStateText(stateObj, display.unit)].filter(Boolean).join(" "),
     );
-    applyBadgePriceColors(badge, stateObj, this._config, timeZone);
+    applyBadgePriceColors(badge, priceStateObj, this._config, timeZone);
     badge.addEventListener("click", () => {
-      showEntityMoreInfo(this, this._config.entity);
+      showEntityMoreInfo(this, this._hass, this._config.entity);
     });
     badge.addEventListener("keydown", (event) => {
       if (event.key !== "Enter" && event.key !== " ") return;
       event.preventDefault();
-      showEntityMoreInfo(this, this._config.entity);
+      showEntityMoreInfo(this, this._hass, this._config.entity);
     });
 
     const icon = this.shadowRoot.querySelector("ha-state-icon");
@@ -1127,6 +1213,74 @@ class NordpoolBadge extends HTMLElement {
       stateObj,
       display.unit,
     );
+  }
+}
+
+class NordpoolPriceMoreInfo extends HTMLElement {
+  constructor() {
+    super();
+    this.attachShadow({ mode: "open" });
+    this._hass = undefined;
+    this._params = undefined;
+    this._open = false;
+  }
+
+  set hass(hass) {
+    this._hass = hass;
+    this._render();
+  }
+
+  showDialog(params) {
+    this._params = params;
+    this._open = true;
+    this._render();
+  }
+
+  closeDialog() {
+    if (!this._open) return;
+    this._open = false;
+    this.shadowRoot.replaceChildren();
+    this.dispatchEvent(new CustomEvent("dialog-closed", {
+      bubbles: true,
+      composed: true,
+    }));
+  }
+
+  _render() {
+    if (!this._open || !this._hass || !this._params) return;
+
+    this.shadowRoot.innerHTML = `
+      <style>
+        ha-dialog {
+          --dialog-content-padding: 0;
+          --mdc-dialog-min-width: min(720px, 92vw);
+          --mdc-dialog-max-width: min(720px, 92vw);
+        }
+        nordpool-price-card {
+          display: block;
+          min-height: 430px;
+        }
+        @media (max-width: 600px) {
+          nordpool-price-card { min-height: 390px; }
+        }
+      </style>
+      <ha-dialog open></ha-dialog>
+    `;
+
+    const dialog = this.shadowRoot.querySelector("ha-dialog");
+    const stateObj = this._hass.states[this._params.entityId];
+    dialog.hass = this._hass;
+    dialog.open = true;
+    dialog.setAttribute(
+      "header-title",
+      stateObj?.attributes?.friendly_name || "Strømpris",
+    );
+    dialog.addEventListener("closed", () => this.closeDialog());
+
+    const card = document.createElement(CARD_TYPE);
+    card.setConfig(this._params.config);
+    card.hass = this._hass;
+    dialog.append(card);
   }
 }
 
@@ -1416,6 +1570,10 @@ if (!customElements.get(BADGE_TYPE)) {
 
 if (!customElements.get("nordpool-badge-editor")) {
   customElements.define("nordpool-badge-editor", NordpoolBadgeEditor);
+}
+
+if (!customElements.get(MORE_INFO_DIALOG_TYPE)) {
+  customElements.define(MORE_INFO_DIALOG_TYPE, NordpoolPriceMoreInfo);
 }
 
 scheduleBadgeRecovery();

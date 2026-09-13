@@ -4,6 +4,22 @@ Alle vesentlige endringer i Nordpool strømoversikt dokumenteres i denne filen.
 
 ## Neste versjon
 
+## 1.4.4 – 2026-09-13
+
+### Nytt
+
+- Trykk på Nordpool Badge åpner Nordpool-priskortet som en egen
+  **Mer informasjon**-dialog for valgt prissensor.
+
+### Endret
+
+- Når Nord Pool-sensoren er valgt i badgen, viser dialogkortet ordinære priser
+  som søyler og skjuler den stiplede linjen. Strømstøttesensorens ferdig
+  aggregerte timeattributter brukes som datakilde, slik at Nord Pools
+  kvartersverdier ikke tolkes som timeverdier.
+- Strømstøtte- og i morgen-sensorene oppgir nå Nord Pool-sensoren de tilhører i
+  attributtet `kildesensor`.
+
 ## 1.4.3 – 2026-09-13
 
 ### Endret

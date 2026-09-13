@@ -74,6 +74,7 @@ som Nord Pool-prisen.
 
 Sensoren har også attributtene:
 
+- `kildesensor`: entitets-ID-en til Nord Pool-sensoren som prisene kommer fra.
 - `original`: 23–25 ordinære Nord Pool-priser for inneværende dag,
   avhengig av om dagen har overgang til eller fra sommertid.
   Originalsensorens `today`-verdier samles til hele klokketimer.
@@ -90,6 +91,7 @@ inneholder et komplett prisdøgn.
 
 Sensoren har attributtene:
 
+- `kildesensor`: entitets-ID-en til Nord Pool-sensoren som prisene kommer fra.
 - `snitt`: gjennomsnittet av morgendagens ordinære Nord Pool-priser før støtte.
 - `pris`: 23–25 timepriser fra originalsensorens `tomorrow`, avhengig av om
   dagen har overgang til eller fra sommertid. Kvarterspriser gjennomsnittberegnes
@@ -169,7 +171,13 @@ nåværende time er dagens dyreste time. Tekst og ikon får den tilhørende mør
 grønne eller røde fargen. I alle andre timer brukes Home Assistants normale
 badgefarger. Bakgrunnen slås av eller på med en bryter.
 
-Trykk på badgen åpner **Mer informasjon** for den valgte prissensoren.
+Trykk på badgen åpner Nordpool-priskortet som **Mer informasjon** for den
+valgte prissensoren. Når strømstøttesensoren er valgt, vises prisene etter
+strømstøtte som søyler og originalprisene som stiplet linje. Når den
+opprinnelige Nord Pool-sensoren er valgt, vises originalprisene som søyler uten
+den stiplede linjen. I begge tilfeller leses grafen fra de ferdig aggregerte
+timeprisene på strømstøttesensoren. Nord Pool-sensorens eventuelle
+kvartersverdier brukes derfor ikke direkte i kortet.
 
 Badgen forsøker automatisk å bygge seg på nytt dersom Home Assistant rekker å
 vise «Custom element doesn't exist» før integrasjonens frontendressurs er
