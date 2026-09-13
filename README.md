@@ -74,6 +74,7 @@ som Nord Pool-prisen.
 
 Sensoren har også attributtene:
 
+- `kildesensor`: entitets-ID-en til Nord Pool-sensoren som prisene kommer fra.
 - `original`: 23–25 ordinære Nord Pool-priser for inneværende dag,
   avhengig av om dagen har overgang til eller fra sommertid.
   Originalsensorens `today`-verdier samles til hele klokketimer.
@@ -90,6 +91,7 @@ inneholder et komplett prisdøgn.
 
 Sensoren har attributtene:
 
+- `kildesensor`: entitets-ID-en til Nord Pool-sensoren som prisene kommer fra.
 - `snitt`: gjennomsnittet av morgendagens ordinære Nord Pool-priser før støtte.
 - `pris`: 23–25 timepriser fra originalsensorens `tomorrow`, avhengig av om
   dagen har overgang til eller fra sommertid. Kvarterspriser gjennomsnittberegnes
@@ -122,30 +124,24 @@ markering av gjeldende time og en horisontal snittlinje. Skjulte prisserier
 fjernes også fra forklaringen og verktøytipset. Slås grafen av, slås alle fire
 grafvalgene av automatisk, og kortet reduserer høyden til det synlige innholdet.
 
-Kortet kan også legges til med YAML:
+Kortet kan konfigureres visuelt eller med følgende YAML-parametere:
 
-```yaml
-type: custom:nordpool-price-card
-entity: sensor.nordpool_stromstotte
-tomorrow_entity: sensor.nordpool_i_morgen
-show_date: true
-show_mean: true
-show_heading: true
-show_graph: true
-show_bars: true
-show_line: true
-show_now_graph: true
-show_mean_graph: true
-show_description: true
-show_now_price: true
-show_border: true
-```
-
-Alle visningsvalgene er `true` som standard og kan utelates fra YAML dersom
-standardvisningen skal brukes. Sett `show_border: false` for å skjule både
-kanten og skyggen rundt kortet. Dette valget finnes bare i YAML og vises ikke i
-den visuelle veiviseren. `tomorrow_entity` kan utelates; da viser kortet bare
-dagens priser og dagsknappene skjules.
+| Parameter | Type | Påbudt | Standard | Beskrivelse |
+| --- | --- | :---: | --- | --- |
+| `type` | string | ✅ | — | Må være `custom:nordpool-price-card`. |
+| `entity` | entity | ✅ | — | Strømstøttesensoren med dagens aggregerte timepriser. |
+| `tomorrow_entity` | entity | ❌ | Ikke valgt | I morgen-sensoren. Når den velges, vises dagsknappene **I dag** og **I morgen**. |
+| `show_date` | boolean | ❌ | `true` | Viser datoen. |
+| `show_mean` | boolean | ❌ | `true` | Viser dagens eller morgendagens snittpris. |
+| `show_heading` | boolean | ❌ | `true` | Viser overskriften for valgt prisdøgn. |
+| `show_graph` | boolean | ❌ | `true` | Viser grafen. Når den slås av, slås også grafens undervalg av. |
+| `show_bars` | boolean | ❌ | `true` | Viser timeprisene etter strømstøtte som søyler. |
+| `show_line` | boolean | ❌ | `true` | Viser ordinære Nord Pool-priser som stiplet linje. |
+| `show_now_graph` | boolean | ❌ | `true` | Markerer gjeldende time i grafen. |
+| `show_mean_graph` | boolean | ❌ | `true` | Viser snittprisen som en horisontal linje i grafen. |
+| `show_description` | boolean | ❌ | `true` | Viser tegnforklaringen for de synlige prisseriene. |
+| `show_now_price` | boolean | ❌ | `true` | Viser prisen for gjeldende time. For i morgen vises laveste pris. |
+| `show_border` | boolean | ❌ | `true` | Viser kanten og skyggen rundt kortet. Dette valget finnes bare i YAML. |
 
 ## Nordpool Badge
 
@@ -169,7 +165,13 @@ nåværende time er dagens dyreste time. Tekst og ikon får den tilhørende mør
 grønne eller røde fargen. I alle andre timer brukes Home Assistants normale
 badgefarger. Bakgrunnen slås av eller på med en bryter.
 
-Trykk på badgen åpner **Mer informasjon** for den valgte prissensoren.
+Trykk på badgen åpner Nordpool-priskortet som **Mer informasjon** for den
+valgte prissensoren. Når strømstøttesensoren er valgt, vises prisene etter
+strømstøtte som søyler og originalprisene som stiplet linje. Når den
+opprinnelige Nord Pool-sensoren er valgt, vises originalprisene som søyler uten
+den stiplede linjen. I begge tilfeller leses grafen fra de ferdig aggregerte
+timeprisene på strømstøttesensoren. Nord Pool-sensorens eventuelle
+kvartersverdier brukes derfor ikke direkte i kortet.
 
 Badgen forsøker automatisk å bygge seg på nytt dersom Home Assistant rekker å
 vise «Custom element doesn't exist» før integrasjonens frontendressurs er

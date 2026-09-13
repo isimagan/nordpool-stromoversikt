@@ -38,14 +38,17 @@ vm.runInContext(
     badgeLabel,
     badgeStateText,
     badgeTimeRange,
+    badgePriceState,
     cardClass,
     isBadgeEntity,
     isTomorrowEntity,
+    moreInfoCardConfig,
     NordpoolBadge,
     recoverNordpoolBadgePickers,
     recoverNordpoolBadges,
     sensorModel,
     showEntityMoreInfo,
+    supportEntityFor,
   };`,
   context,
 );
@@ -58,14 +61,17 @@ const {
   badgeLabel,
   badgeStateText,
   badgeTimeRange,
+  badgePriceState,
   cardClass,
   isBadgeEntity,
   isTomorrowEntity,
+  moreInfoCardConfig,
   NordpoolBadge,
   recoverNordpoolBadgePickers,
   recoverNordpoolBadges,
   sensorModel,
   showEntityMoreInfo,
+  supportEntityFor,
 } = context.cardTest;
 const unavailableTomorrow = {
   state: "unavailable",
@@ -146,14 +152,16 @@ test("uses the Home Assistant calendar date for today and tomorrow", () => {
 });
 
 test("formats the Nordpool badge state as a Norwegian krone amount", () => {
-  assert.equal(badgeStateText({ state: "1.2" }), "1,2 kr");
-  assert.equal(badgeStateText({ state: "1.2" }, "NOK/kWh"), "1,2 NOK/kWh");
+  assert.equal(badgeStateText({ state: "1" }), "1,00 kr");
+  assert.equal(badgeStateText({ state: "2.7" }), "2,70 kr");
+  assert.equal(badgeStateText({ state: "0.56" }), "0,56 kr");
+  assert.equal(badgeStateText({ state: "1.2" }, "NOK/kWh"), "1,20 NOK/kWh");
   assert.equal(badgeStateText({ state: "unavailable" }), "—");
   assert.equal(badgeStateText(undefined), "—");
 });
 
 test("migrates the previous badge unit spelling", () => {
-  assert.equal(badgeStateText({ state: "1.2" }, "kWh/NOK"), "1,2 NOK/kWh");
+  assert.equal(badgeStateText({ state: "1.2" }, "kWh/NOK"), "1,20 NOK/kWh");
 });
 
 test("builds the badge label from price and the current whole hour", () => {
@@ -214,18 +222,119 @@ test("keeps a custom icon when the badge entity changes", () => {
   assert.equal(config.entity, "sensor.old");
 });
 
-test("opens more info for the selected badge entity", () => {
+test("opens the price card as more info for the selected support entity", () => {
   const events = [];
   const target = { dispatchEvent: (event) => events.push(event) };
+  const hass = {
+    states: {
+      "sensor.nordpool_stromstotte": {
+        state: "1.2",
+        attributes: {
+          kildesensor: "sensor.nordpool",
+          idag: Array(24).fill(1),
+          original: Array(24).fill(2),
+          snittpris: 1,
+        },
+      },
+      "sensor.nordpool_i_morgen": {
+        state: "1.1",
+        attributes: {
+          kildesensor: "sensor.nordpool",
+          stotte: Array(24).fill(1.1),
+          pris: Array(24).fill(2.1),
+          snitt: 2.1,
+        },
+      },
+    },
+    entities: {},
+  };
 
-  assert.equal(showEntityMoreInfo(target, "sensor.nordpool_stromstotte"), true);
+  assert.equal(
+    showEntityMoreInfo(target, hass, "sensor.nordpool_stromstotte"),
+    true,
+  );
   assert.equal(events.length, 1);
-  assert.equal(events[0].type, "hass-more-info");
-  assert.equal(events[0].detail.entityId, "sensor.nordpool_stromstotte");
+  assert.equal(events[0].type, "show-dialog");
+  assert.equal(events[0].detail.dialogTag, "nordpool-price-more-info");
+  assert.equal(
+    events[0].detail.dialogParams.config.entity,
+    "sensor.nordpool_stromstotte",
+  );
+  assert.equal(
+    events[0].detail.dialogParams.config.tomorrow_entity,
+    "sensor.nordpool_i_morgen",
+  );
+  assert.equal(events[0].detail.dialogParams.config.price_mode, "supported");
+  assert.equal(events[0].detail.dialogParams.config.show_line, true);
   assert.equal(events[0].bubbles, true);
   assert.equal(events[0].composed, true);
-  assert.equal(showEntityMoreInfo(target, undefined), false);
+  assert.equal(showEntityMoreInfo(target, hass, undefined), false);
   assert.equal(events.length, 1);
+});
+
+test("uses hourly support-sensor attributes when Nord Pool is selected", () => {
+  const supportState = {
+    state: "1.2",
+    attributes: {
+      kildesensor: "sensor.nordpool",
+      idag: Array(24).fill(1),
+      original: Array.from({ length: 24 }, (_, hour) => hour),
+      snittpris: 1,
+      gjeldende_time: 8,
+    },
+  };
+  const hass = {
+    states: {
+      "sensor.nordpool": {
+        state: "8",
+        attributes: { today: Array(96).fill(8), tomorrow: [] },
+      },
+      "sensor.nordpool_stromstotte": supportState,
+    },
+    entities: { "sensor.nordpool": { platform: "nordpool" } },
+  };
+
+  assert.equal(
+    supportEntityFor(hass, "sensor.nordpool"),
+    "sensor.nordpool_stromstotte",
+  );
+  const priceState = badgePriceState(hass, "sensor.nordpool");
+  assert.deepEqual(
+    Array.from(priceState.attributes.idag),
+    Array.from(supportState.attributes.original),
+  );
+  assert.equal(priceState.attributes.gjeldende_time, 8);
+
+  const config = moreInfoCardConfig(hass, "sensor.nordpool");
+  assert.equal(config.entity, "sensor.nordpool_stromstotte");
+  assert.equal(config.price_mode, "original");
+  assert.equal(config.show_line, false);
+
+  const model = sensorModel(
+    supportState,
+    false,
+    "Europe/Oslo",
+    new Date("2026-09-13T06:00:00Z"),
+    config.price_mode,
+  );
+  assert.equal(model.supported.length, 24);
+  assert.equal(model.supported[8], 8);
+  assert.equal(model.average, 11.5);
+  assert.equal(model.primaryLabel, "Uten strømstøtte");
+  assert.equal(model.averageLabel, "Snittpris");
+});
+
+test("falls back to Home Assistant more info without matching hourly data", () => {
+  const events = [];
+  const target = { dispatchEvent: (event) => events.push(event) };
+  const hass = {
+    states: { "sensor.other": { state: "1", attributes: {} } },
+    entities: {},
+  };
+
+  assert.equal(showEntityMoreInfo(target, hass, "sensor.other"), true);
+  assert.equal(events[0].type, "hass-more-info");
+  assert.equal(events[0].detail.entityId, "sensor.other");
 });
 
 test("applies the price color to badge text and icon", () => {
