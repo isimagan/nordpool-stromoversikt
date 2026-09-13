@@ -19,6 +19,9 @@ Alle vesentlige endringer i Nordpool strømoversikt dokumenteres i denne filen.
   kvartersverdier ikke tolkes som timeverdier.
 - Strømstøtte- og i morgen-sensorene oppgir nå Nord Pool-sensoren de tilhører i
   attributtet `kildesensor`.
+- Badgens state vises alltid med to desimaler.
+- YAML-eksempelet for Nordpool-priskortet i README er erstattet av en komplett
+  parametertabell med type, krav, standardverdi og beskrivelse.
 
 ## 1.4.3 – 2026-09-13
 

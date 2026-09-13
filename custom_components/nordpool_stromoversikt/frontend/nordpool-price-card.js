@@ -385,7 +385,10 @@ function badgeStateText(stateObj, unit = BADGE_DEFAULTS.unit) {
 
   const value = Number(stateObj.state);
   if (!Number.isFinite(value)) return "—";
-  const state = value.toLocaleString("nb-NO", { maximumFractionDigits: 10 });
+  const state = value.toLocaleString("nb-NO", {
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2,
+  });
   return `${state} ${badgeUnit(unit)}`;
 }
 

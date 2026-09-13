@@ -152,14 +152,16 @@ test("uses the Home Assistant calendar date for today and tomorrow", () => {
 });
 
 test("formats the Nordpool badge state as a Norwegian krone amount", () => {
-  assert.equal(badgeStateText({ state: "1.2" }), "1,2 kr");
-  assert.equal(badgeStateText({ state: "1.2" }, "NOK/kWh"), "1,2 NOK/kWh");
+  assert.equal(badgeStateText({ state: "1" }), "1,00 kr");
+  assert.equal(badgeStateText({ state: "2.7" }), "2,70 kr");
+  assert.equal(badgeStateText({ state: "0.56" }), "0,56 kr");
+  assert.equal(badgeStateText({ state: "1.2" }, "NOK/kWh"), "1,20 NOK/kWh");
   assert.equal(badgeStateText({ state: "unavailable" }), "—");
   assert.equal(badgeStateText(undefined), "—");
 });
 
 test("migrates the previous badge unit spelling", () => {
-  assert.equal(badgeStateText({ state: "1.2" }, "kWh/NOK"), "1,2 NOK/kWh");
+  assert.equal(badgeStateText({ state: "1.2" }, "kWh/NOK"), "1,20 NOK/kWh");
 });
 
 test("builds the badge label from price and the current whole hour", () => {

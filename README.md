@@ -124,30 +124,24 @@ markering av gjeldende time og en horisontal snittlinje. Skjulte prisserier
 fjernes også fra forklaringen og verktøytipset. Slås grafen av, slås alle fire
 grafvalgene av automatisk, og kortet reduserer høyden til det synlige innholdet.
 
-Kortet kan også legges til med YAML:
+Kortet kan konfigureres visuelt eller med følgende YAML-parametere:
 
-```yaml
-type: custom:nordpool-price-card
-entity: sensor.nordpool_stromstotte
-tomorrow_entity: sensor.nordpool_i_morgen
-show_date: true
-show_mean: true
-show_heading: true
-show_graph: true
-show_bars: true
-show_line: true
-show_now_graph: true
-show_mean_graph: true
-show_description: true
-show_now_price: true
-show_border: true
-```
-
-Alle visningsvalgene er `true` som standard og kan utelates fra YAML dersom
-standardvisningen skal brukes. Sett `show_border: false` for å skjule både
-kanten og skyggen rundt kortet. Dette valget finnes bare i YAML og vises ikke i
-den visuelle veiviseren. `tomorrow_entity` kan utelates; da viser kortet bare
-dagens priser og dagsknappene skjules.
+| Parameter | Type | Påbudt | Standard | Beskrivelse |
+| --- | --- | :---: | --- | --- |
+| `type` | string | ✅ | — | Må være `custom:nordpool-price-card`. |
+| `entity` | entity | ✅ | — | Strømstøttesensoren med dagens aggregerte timepriser. |
+| `tomorrow_entity` | entity | ❌ | Ikke valgt | I morgen-sensoren. Når den velges, vises dagsknappene **I dag** og **I morgen**. |
+| `show_date` | boolean | ❌ | `true` | Viser datoen. |
+| `show_mean` | boolean | ❌ | `true` | Viser dagens eller morgendagens snittpris. |
+| `show_heading` | boolean | ❌ | `true` | Viser overskriften for valgt prisdøgn. |
+| `show_graph` | boolean | ❌ | `true` | Viser grafen. Når den slås av, slås også grafens undervalg av. |
+| `show_bars` | boolean | ❌ | `true` | Viser timeprisene etter strømstøtte som søyler. |
+| `show_line` | boolean | ❌ | `true` | Viser ordinære Nord Pool-priser som stiplet linje. |
+| `show_now_graph` | boolean | ❌ | `true` | Markerer gjeldende time i grafen. |
+| `show_mean_graph` | boolean | ❌ | `true` | Viser snittprisen som en horisontal linje i grafen. |
+| `show_description` | boolean | ❌ | `true` | Viser tegnforklaringen for de synlige prisseriene. |
+| `show_now_price` | boolean | ❌ | `true` | Viser prisen for gjeldende time. For i morgen vises laveste pris. |
+| `show_border` | boolean | ❌ | `true` | Viser kanten og skyggen rundt kortet. Dette valget finnes bare i YAML. |
 
 ## Nordpool Badge
 
