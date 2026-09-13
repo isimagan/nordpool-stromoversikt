@@ -153,12 +153,13 @@ Integrasjonen legger også til **Nordpool Badge** i badgevelgeren for dashbord.
 Badgen følger Home Assistants standardutseende. Du kan velge enten den
 opprinnelige Nord Pool-sensoren eller integrasjonens strømstøttesensor;
 strømstøttesensoren er standardvalget. Sensorens tilstand vises uten den
-opprinnelige enheten, etterfulgt av valgt enhet: `kr` eller `kWh/NOK`.
+opprinnelige enheten, etterfulgt av valgt enhet: `kr` eller `NOK/kWh`.
 
 Under **Navn** har veiviseren separate avkrysningsbokser for **Pris** og
 **Nåværende time**. Bare **Pris** er slått på som standard. Tidsrommet viser
 den hele klokketimen nå er innenfor, for eksempel `15:00-16:00`. Når begge
-vises, blir labelen `Pris · 15:00-16:00`.
+vises, blir labelen `Pris · 15:00-16:00`. Valgene ligger i en utvidbar seksjon
+som er lukket som standard.
 
 Ikonet følger den valgte entiteten som standard, men kan overstyres i
 ikonvelgeren. Et overstyrt ikon beholdes når entiteten byttes. En valgfri
