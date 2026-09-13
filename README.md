@@ -153,19 +153,23 @@ Integrasjonen legger også til **Nordpool Badge** i badgevelgeren for dashbord.
 Badgen følger Home Assistants standardutseende. Du kan velge enten den
 opprinnelige Nord Pool-sensoren eller integrasjonens strømstøttesensor;
 strømstøttesensoren er standardvalget. Sensorens tilstand vises uten den
-opprinnelige enheten, etterfulgt av valgt enhet: `kr` eller `kWh/NOK`.
+opprinnelige enheten, etterfulgt av valgt enhet: `kr` eller `NOK/kWh`.
 
 Under **Navn** har veiviseren separate avkrysningsbokser for **Pris** og
 **Nåværende time**. Bare **Pris** er slått på som standard. Tidsrommet viser
 den hele klokketimen nå er innenfor, for eksempel `15:00-16:00`. Når begge
-vises, blir labelen `Pris · 15:00-16:00`.
+vises, blir labelen `Pris · 15:00-16:00`. Valgene ligger i en utvidbar seksjon
+som er lukket som standard.
 
 Ikonet følger den valgte entiteten som standard, men kan overstyres i
 ikonvelgeren. Et overstyrt ikon beholdes når entiteten byttes. En valgfri
 prisbasert bakgrunn bruker Excels standardfarger for positive og negative
-celler: lysegrønn for dagens billigste pris og lyserød for dagens dyreste pris.
-Tekst og ikon følger den tilhørende mørke grønn-til-rød-skalaen. Bakgrunnen slås
-av eller på med en bryter.
+celler: lysegrønn når nåværende time er dagens billigste time, og lyserød når
+nåværende time er dagens dyreste time. Tekst og ikon får den tilhørende mørke
+grønne eller røde fargen. I alle andre timer brukes Home Assistants normale
+badgefarger. Bakgrunnen slås av eller på med en bryter.
+
+Trykk på badgen åpner **Mer informasjon** for den valgte prissensoren.
 
 Badgen forsøker automatisk å bygge seg på nytt dersom Home Assistant rekker å
 vise «Custom element doesn't exist» før integrasjonens frontendressurs er

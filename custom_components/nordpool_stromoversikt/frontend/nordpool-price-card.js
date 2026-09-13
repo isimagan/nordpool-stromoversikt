@@ -4,7 +4,7 @@ const CARD_DOCS = "https://github.com/isimagan/nordpool-stromoversikt#nordpool-p
 const BADGE_TYPE = "nordpool-badge";
 const BADGE_NAME = "Nordpool Badge";
 const BADGE_DOCS = "https://github.com/isimagan/nordpool-stromoversikt#nordpool-badge";
-const BADGE_UNITS = ["kr", "kWh/NOK"];
+const BADGE_UNITS = ["kr", "NOK/kWh"];
 const BADGE_DEFAULTS = {
   show_price: true,
   show_time_range: false,
@@ -353,12 +353,19 @@ function priceText(value) {
   })} kr`;
 }
 
+function badgeUnit(unit) {
+  const configuredUnit = unit === "kWh/NOK" ? "NOK/kWh" : unit;
+  return BADGE_UNITS.includes(configuredUnit)
+    ? configuredUnit
+    : BADGE_DEFAULTS.unit;
+}
+
 function badgeConfig(config = {}) {
   return {
     show_price: config.show_price !== false,
     show_time_range: config.show_time_range === true,
     show_background: config.show_background === true,
-    unit: BADGE_UNITS.includes(config.unit) ? config.unit : BADGE_DEFAULTS.unit,
+    unit: badgeUnit(config.unit),
   };
 }
 
@@ -378,7 +385,7 @@ function badgeStateText(stateObj, unit = BADGE_DEFAULTS.unit) {
   const value = Number(stateObj.state);
   if (!Number.isFinite(value)) return "—";
   const state = value.toLocaleString("nb-NO", { maximumFractionDigits: 10 });
-  return `${state} ${BADGE_UNITS.includes(unit) ? unit : BADGE_DEFAULTS.unit}`;
+  return `${state} ${badgeUnit(unit)}`;
 }
 
 function badgeTimeRange(timeZone, now = new Date()) {
@@ -405,53 +412,64 @@ function isBadgeEntity(hass, entityId, stateObj) {
     || isNordpoolSourceEntity(hass, entityId, stateObj);
 }
 
-function badgePricePosition(stateObj, config = {}) {
+function badgePriceCategory(
+  stateObj,
+  config = {},
+  timeZone,
+  now = new Date(),
+) {
   const display = badgeConfig(config);
   if (!display.show_background || !stateObj) return undefined;
 
-  const currentPrice = Number(stateObj.state);
   const prices = numberList(stateObj.attributes?.idag).length
     ? numberList(stateObj.attributes.idag)
     : numberList(stateObj.attributes?.today);
-  if (!Number.isFinite(currentPrice) || !prices.length) return undefined;
+  if (!prices.length) return undefined;
 
-  const minimum = Math.min(...prices);
-  const maximum = Math.max(...prices);
-  return maximum === minimum
-    ? 0
-    : Math.min(1, Math.max(0, (currentPrice - minimum) / (maximum - minimum)));
+  const backendHour = Number(stateObj.attributes?.gjeldende_time);
+  const currentHour = Number.isInteger(backendHour)
+    && backendHour >= 0
+    && backendHour < prices.length
+    ? backendHour
+    : homeAssistantTime(now, timeZone).hour;
+  if (currentHour === prices.indexOf(Math.min(...prices))) return "cheapest";
+  if (currentHour === prices.indexOf(Math.max(...prices))) return "mostExpensive";
+  return undefined;
 }
 
-function badgePriceColor(stateObj, config, colorType) {
-  const position = badgePricePosition(stateObj, config);
-  if (position === undefined) return undefined;
-
-  const cheapest = BADGE_PRICE_COLORS.cheapest[colorType];
-  const mostExpensive = BADGE_PRICE_COLORS.mostExpensive[colorType];
-  if (position === 0) return cheapest;
-  if (position === 1) return mostExpensive;
-
-  const cheapestShare = Math.round((1 - position) * 10000) / 100;
-  return `color-mix(in srgb, ${cheapest} ${cheapestShare}%, ${mostExpensive})`;
+function badgePriceColor(stateObj, config, colorType, timeZone, now = new Date()) {
+  const category = badgePriceCategory(stateObj, config, timeZone, now);
+  return category ? BADGE_PRICE_COLORS[category][colorType] : undefined;
 }
 
-function badgeBackground(stateObj, config = {}) {
-  return badgePriceColor(stateObj, config, "background");
+function badgeBackground(stateObj, config = {}, timeZone, now = new Date()) {
+  return badgePriceColor(stateObj, config, "background", timeZone, now);
 }
 
-function badgeForeground(stateObj, config = {}) {
-  return badgePriceColor(stateObj, config, "foreground");
+function badgeForeground(stateObj, config = {}, timeZone, now = new Date()) {
+  return badgePriceColor(stateObj, config, "foreground", timeZone, now);
 }
 
-function applyBadgePriceColors(badge, stateObj, config = {}) {
-  const background = badgeBackground(stateObj, config);
-  const foreground = badgeForeground(stateObj, config);
+function applyBadgePriceColors(badge, stateObj, config = {}, timeZone) {
+  const background = badgeBackground(stateObj, config, timeZone);
+  const foreground = badgeForeground(stateObj, config, timeZone);
   if (background) badge.style.setProperty("--ha-card-background", background);
   if (!foreground) return;
 
   badge.style.setProperty("--primary-text-color", foreground);
   badge.style.setProperty("--secondary-text-color", foreground);
   badge.style.setProperty("--badge-color", foreground);
+}
+
+function showEntityMoreInfo(target, entityId) {
+  if (!entityId) return false;
+
+  target.dispatchEvent(new CustomEvent("hass-more-info", {
+    detail: { entityId },
+    bubbles: true,
+    composed: true,
+  }));
+  return true;
 }
 
 function displayConfig(config = {}) {
@@ -853,6 +871,7 @@ class NordpoolPriceCardEditor extends HTMLElement {
     this.attachShadow({ mode: "open" });
     this._config = {};
     this._hass = undefined;
+    this._nameExpanded = false;
   }
 
   setConfig(config) {
@@ -1073,10 +1092,9 @@ class NordpoolBadge extends HTMLElement {
       ? this._hass.states[this._config.entity]
       : undefined;
     const display = badgeConfig(this._config);
-    const label = badgeLabel(
-      this._config,
-      stateObj?.attributes?.tidssone || this._hass.config?.time_zone,
-    );
+    const timeZone = stateObj?.attributes?.tidssone
+      || this._hass.config?.time_zone;
+    const label = badgeLabel(this._config, timeZone);
 
     this.shadowRoot.innerHTML = `
       <ha-badge>
@@ -1086,12 +1104,21 @@ class NordpoolBadge extends HTMLElement {
     `;
 
     const badge = this.shadowRoot.querySelector("ha-badge");
+    badge.type = "button";
     badge.label = label || undefined;
     badge.setAttribute(
       "aria-label",
       [label, badgeStateText(stateObj, display.unit)].filter(Boolean).join(" "),
     );
-    applyBadgePriceColors(badge, stateObj, this._config);
+    applyBadgePriceColors(badge, stateObj, this._config, timeZone);
+    badge.addEventListener("click", () => {
+      showEntityMoreInfo(this, this._config.entity);
+    });
+    badge.addEventListener("keydown", (event) => {
+      if (event.key !== "Enter" && event.key !== " ") return;
+      event.preventDefault();
+      showEntityMoreInfo(this, this._config.entity);
+    });
 
     const icon = this.shadowRoot.querySelector("ha-state-icon");
     icon.stateObj = stateObj;
@@ -1126,6 +1153,8 @@ class NordpoolBadgeEditor extends HTMLElement {
 
     const requiredElements = [
       "ha-entity-picker",
+      "ha-expansion-panel",
+      "ha-icon",
       "ha-icon-picker",
       "ha-select",
       "ha-switch",
@@ -1154,17 +1183,16 @@ class NordpoolBadgeEditor extends HTMLElement {
         ha-entity-picker,
         ha-icon-picker,
         ha-select { display: block; width: 100%; margin-top: 16px; }
-        fieldset {
-          margin: 18px 0 0;
-          padding: 10px 14px 12px;
-          border: 1px solid var(--divider-color);
-          border-radius: 12px;
+        ha-expansion-panel {
+          margin-top: 18px;
+          --expansion-panel-summary-padding: 4px 14px;
+          --expansion-panel-content-padding: 0 14px 10px;
         }
-        legend {
-          margin-bottom: 9px;
-          color: var(--primary-text-color);
-          font-size: 14px;
-          font-weight: 650;
+        ha-expansion-panel ha-icon {
+          color: var(--secondary-text-color);
+        }
+        .name-options-content {
+          padding-top: 2px;
         }
         .option {
           display: flex;
@@ -1193,17 +1221,19 @@ class NordpoolBadgeEditor extends HTMLElement {
         }
       </style>
       <ha-entity-picker></ha-entity-picker>
-      <fieldset class="label-options">
-        <legend>Navn</legend>
-        <label class="option">
-          <input type="checkbox" data-option="show_price">
-          Pris
-        </label>
-        <label class="option">
-          <input type="checkbox" data-option="show_time_range">
-          Nåværende time
-        </label>
-      </fieldset>
+      <ha-expansion-panel class="name-options" outlined>
+        <ha-icon slot="leading-icon" icon="mdi:format-list-bulleted"></ha-icon>
+        <div class="name-options-content">
+          <label class="option">
+            <input type="checkbox" data-option="show_price">
+            Pris
+          </label>
+          <label class="option">
+            <input type="checkbox" data-option="show_time_range">
+            Nåværende time
+          </label>
+        </div>
+      </ha-expansion-panel>
       <label class="switch-option">
         <span>Vis prisbasert bakgrunn</span>
         <ha-switch class="background-switch"></ha-switch>
@@ -1227,6 +1257,13 @@ class NordpoolBadgeEditor extends HTMLElement {
         bubbles: true,
         composed: true,
       }));
+    });
+
+    const nameOptions = this.shadowRoot.querySelector(".name-options");
+    nameOptions.header = "Navn";
+    nameOptions.expanded = this._nameExpanded;
+    nameOptions.addEventListener("expanded-changed", (event) => {
+      this._nameExpanded = event.detail.expanded;
     });
 
     for (const checkbox of this.shadowRoot.querySelectorAll("[data-option]")) {
@@ -1266,7 +1303,7 @@ class NordpoolBadgeEditor extends HTMLElement {
       label: unit,
     }));
     unitPicker.addEventListener("selected", (event) => {
-      this._changeConfig({ unit: event.currentTarget.value });
+      this._changeConfig({ unit: event.detail.value });
     });
   }
 

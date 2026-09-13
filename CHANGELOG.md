@@ -4,6 +4,21 @@ Alle vesentlige endringer i Nordpool strømoversikt dokumenteres i denne filen.
 
 ## Neste versjon
 
+## 1.4.3 – 2026-09-13
+
+### Endret
+
+- Valgene under **Navn** i badgeveiviseren ligger nå i en utvidbar seksjon.
+- Enhetsvalget bruker `kr` og `NOK/kWh`. Den tidligere verdien `kWh/NOK`
+  konverteres automatisk.
+- Trykk på Nordpool Badge åpner **Mer informasjon** for den valgte entiteten.
+- Prisbasert bakgrunn vises bare når nåværende time er dagens billigste eller
+  dyreste time. Andre timer bruker Home Assistants normale badgefarger.
+
+### Rettet
+
+- Begge enhetene i badgeveiviseren kan nå velges og lagres.
+
 ## 1.4.2.2 – 2026-09-13
 
 ### Rettet

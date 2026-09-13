@@ -11,6 +11,12 @@ const source = readFileSync(new URL(
 const customElements = new Map();
 const context = vm.createContext({
   console,
+  CustomEvent: class {
+    constructor(type, options) {
+      this.type = type;
+      Object.assign(this, options);
+    }
+  },
   customElements: {
     define: (name, element) => customElements.set(name, element),
     get: (name) => customElements.get(name),
@@ -39,6 +45,7 @@ vm.runInContext(
     recoverNordpoolBadgePickers,
     recoverNordpoolBadges,
     sensorModel,
+    showEntityMoreInfo,
   };`,
   context,
 );
@@ -58,6 +65,7 @@ const {
   recoverNordpoolBadgePickers,
   recoverNordpoolBadges,
   sensorModel,
+  showEntityMoreInfo,
 } = context.cardTest;
 const unavailableTomorrow = {
   state: "unavailable",
@@ -139,9 +147,13 @@ test("uses the Home Assistant calendar date for today and tomorrow", () => {
 
 test("formats the Nordpool badge state as a Norwegian krone amount", () => {
   assert.equal(badgeStateText({ state: "1.2" }), "1,2 kr");
-  assert.equal(badgeStateText({ state: "1.2" }, "kWh/NOK"), "1,2 kWh/NOK");
+  assert.equal(badgeStateText({ state: "1.2" }, "NOK/kWh"), "1,2 NOK/kWh");
   assert.equal(badgeStateText({ state: "unavailable" }), "—");
   assert.equal(badgeStateText(undefined), "—");
+});
+
+test("migrates the previous badge unit spelling", () => {
+  assert.equal(badgeStateText({ state: "1.2" }, "kWh/NOK"), "1,2 NOK/kWh");
 });
 
 test("builds the badge label from price and the current whole hour", () => {
@@ -163,41 +175,28 @@ test("builds the badge label from price and the current whole hour", () => {
   assert.equal(badgeTimeRange("Europe/Oslo", now), "15:00-16:00");
 });
 
-test("colors the badge between the cheapest and most expensive prices", () => {
-  const config = {
-    show_background: true,
-    cheapest_color: "blue",
-    most_expensive_color: "orange",
+test("colors the badge only during the cheapest or most expensive hour", () => {
+  const config = { show_background: true };
+  const cheapest = {
+    state: "0",
+    attributes: { idag: [1, 0, 2], gjeldende_time: 1 },
+  };
+  const ordinary = {
+    state: "1",
+    attributes: { idag: [1, 0, 2], gjeldende_time: 0 },
+  };
+  const mostExpensive = {
+    state: "2",
+    attributes: { today: [1, 0, 2], gjeldende_time: 2 },
   };
 
-  assert.equal(
-    badgeBackground({ state: "0", attributes: { idag: [0, 1, 2] } }, config),
-    "#C6EFCE",
-  );
-  assert.equal(
-    badgeBackground({ state: "1", attributes: { idag: [0, 1, 2] } }, config),
-    "color-mix(in srgb, #C6EFCE 50%, #FFC7CE)",
-  );
-  assert.equal(
-    badgeBackground({ state: "2", attributes: { today: [0, 1, 2] } }, config),
-    "#FFC7CE",
-  );
-  assert.equal(
-    badgeBackground({ state: "1", attributes: { idag: [0, 1, 2] } }, {}),
-    undefined,
-  );
-  assert.equal(
-    badgeForeground({ state: "0", attributes: { idag: [0, 1, 2] } }, config),
-    "#006100",
-  );
-  assert.equal(
-    badgeForeground({ state: "1", attributes: { idag: [0, 1, 2] } }, config),
-    "color-mix(in srgb, #006100 50%, #9C0006)",
-  );
-  assert.equal(
-    badgeForeground({ state: "2", attributes: { idag: [0, 1, 2] } }, config),
-    "#9C0006",
-  );
+  assert.equal(badgeBackground(cheapest, config), "#C6EFCE");
+  assert.equal(badgeForeground(cheapest, config), "#006100");
+  assert.equal(badgeBackground(mostExpensive, config), "#FFC7CE");
+  assert.equal(badgeForeground(mostExpensive, config), "#9C0006");
+  assert.equal(badgeBackground(ordinary, config), undefined);
+  assert.equal(badgeForeground(ordinary, config), undefined);
+  assert.equal(badgeBackground(cheapest, {}), undefined);
 });
 
 test("keeps a custom icon when the badge entity changes", () => {
@@ -215,6 +214,20 @@ test("keeps a custom icon when the badge entity changes", () => {
   assert.equal(config.entity, "sensor.old");
 });
 
+test("opens more info for the selected badge entity", () => {
+  const events = [];
+  const target = { dispatchEvent: (event) => events.push(event) };
+
+  assert.equal(showEntityMoreInfo(target, "sensor.nordpool_stromstotte"), true);
+  assert.equal(events.length, 1);
+  assert.equal(events[0].type, "hass-more-info");
+  assert.equal(events[0].detail.entityId, "sensor.nordpool_stromstotte");
+  assert.equal(events[0].bubbles, true);
+  assert.equal(events[0].composed, true);
+  assert.equal(showEntityMoreInfo(target, undefined), false);
+  assert.equal(events.length, 1);
+});
+
 test("applies the price color to badge text and icon", () => {
   const properties = new Map();
   const badge = {
@@ -225,7 +238,7 @@ test("applies the price color to badge text and icon", () => {
 
   applyBadgePriceColors(
     badge,
-    { state: "0", attributes: { idag: [0, 1, 2] } },
+    { state: "0", attributes: { idag: [0, 1, 2], gjeldende_time: 0 } },
     { show_background: true },
   );
 
