@@ -461,6 +461,17 @@ function applyBadgePriceColors(badge, stateObj, config = {}) {
   badge.style.setProperty("--badge-color", foreground);
 }
 
+function showEntityMoreInfo(target, entityId) {
+  if (!entityId) return false;
+
+  target.dispatchEvent(new CustomEvent("hass-more-info", {
+    detail: { entityId },
+    bubbles: true,
+    composed: true,
+  }));
+  return true;
+}
+
 function displayConfig(config = {}) {
   const display = Object.fromEntries(
     Object.keys(DISPLAY_DEFAULTS).map((key) => [key, config[key] !== false]),
@@ -1094,12 +1105,21 @@ class NordpoolBadge extends HTMLElement {
     `;
 
     const badge = this.shadowRoot.querySelector("ha-badge");
+    badge.type = "button";
     badge.label = label || undefined;
     badge.setAttribute(
       "aria-label",
       [label, badgeStateText(stateObj, display.unit)].filter(Boolean).join(" "),
     );
     applyBadgePriceColors(badge, stateObj, this._config);
+    badge.addEventListener("click", () => {
+      showEntityMoreInfo(this, this._config.entity);
+    });
+    badge.addEventListener("keydown", (event) => {
+      if (event.key !== "Enter" && event.key !== " ") return;
+      event.preventDefault();
+      showEntityMoreInfo(this, this._config.entity);
+    });
 
     const icon = this.shadowRoot.querySelector("ha-state-icon");
     icon.stateObj = stateObj;

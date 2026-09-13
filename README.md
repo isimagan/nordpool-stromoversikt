@@ -168,6 +168,8 @@ celler: lysegrønn for dagens billigste pris og lyserød for dagens dyreste pris
 Tekst og ikon følger den tilhørende mørke grønn-til-rød-skalaen. Bakgrunnen slås
 av eller på med en bryter.
 
+Trykk på badgen åpner **Mer informasjon** for den valgte prissensoren.
+
 Badgen forsøker automatisk å bygge seg på nytt dersom Home Assistant rekker å
 vise «Custom element doesn't exist» før integrasjonens frontendressurs er
 ferdig lastet. Badgevelgeren lastes også på nytt dersom Nordpool Badge blir

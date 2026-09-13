@@ -11,6 +11,7 @@ Alle vesentlige endringer i Nordpool strømoversikt dokumenteres i denne filen.
 - Valgene under **Navn** i badgeveiviseren ligger nå i en utvidbar seksjon.
 - Enhetsvalget bruker `kr` og `NOK/kWh`. Den tidligere verdien `kWh/NOK`
   konverteres automatisk.
+- Trykk på Nordpool Badge åpner **Mer informasjon** for den valgte entiteten.
 
 ### Rettet
 
