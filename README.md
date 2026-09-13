@@ -164,9 +164,10 @@ som er lukket som standard.
 Ikonet følger den valgte entiteten som standard, men kan overstyres i
 ikonvelgeren. Et overstyrt ikon beholdes når entiteten byttes. En valgfri
 prisbasert bakgrunn bruker Excels standardfarger for positive og negative
-celler: lysegrønn for dagens billigste pris og lyserød for dagens dyreste pris.
-Tekst og ikon følger den tilhørende mørke grønn-til-rød-skalaen. Bakgrunnen slås
-av eller på med en bryter.
+celler: lysegrønn når nåværende time er dagens billigste time, og lyserød når
+nåværende time er dagens dyreste time. Tekst og ikon får den tilhørende mørke
+grønne eller røde fargen. I alle andre timer brukes Home Assistants normale
+badgefarger. Bakgrunnen slås av eller på med en bryter.
 
 Trykk på badgen åpner **Mer informasjon** for den valgte prissensoren.
 

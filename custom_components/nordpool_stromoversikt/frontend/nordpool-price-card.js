@@ -412,47 +412,47 @@ function isBadgeEntity(hass, entityId, stateObj) {
     || isNordpoolSourceEntity(hass, entityId, stateObj);
 }
 
-function badgePricePosition(stateObj, config = {}) {
+function badgePriceCategory(
+  stateObj,
+  config = {},
+  timeZone,
+  now = new Date(),
+) {
   const display = badgeConfig(config);
   if (!display.show_background || !stateObj) return undefined;
 
-  const currentPrice = Number(stateObj.state);
   const prices = numberList(stateObj.attributes?.idag).length
     ? numberList(stateObj.attributes.idag)
     : numberList(stateObj.attributes?.today);
-  if (!Number.isFinite(currentPrice) || !prices.length) return undefined;
+  if (!prices.length) return undefined;
 
-  const minimum = Math.min(...prices);
-  const maximum = Math.max(...prices);
-  return maximum === minimum
-    ? 0
-    : Math.min(1, Math.max(0, (currentPrice - minimum) / (maximum - minimum)));
+  const backendHour = Number(stateObj.attributes?.gjeldende_time);
+  const currentHour = Number.isInteger(backendHour)
+    && backendHour >= 0
+    && backendHour < prices.length
+    ? backendHour
+    : homeAssistantTime(now, timeZone).hour;
+  if (currentHour === prices.indexOf(Math.min(...prices))) return "cheapest";
+  if (currentHour === prices.indexOf(Math.max(...prices))) return "mostExpensive";
+  return undefined;
 }
 
-function badgePriceColor(stateObj, config, colorType) {
-  const position = badgePricePosition(stateObj, config);
-  if (position === undefined) return undefined;
-
-  const cheapest = BADGE_PRICE_COLORS.cheapest[colorType];
-  const mostExpensive = BADGE_PRICE_COLORS.mostExpensive[colorType];
-  if (position === 0) return cheapest;
-  if (position === 1) return mostExpensive;
-
-  const cheapestShare = Math.round((1 - position) * 10000) / 100;
-  return `color-mix(in srgb, ${cheapest} ${cheapestShare}%, ${mostExpensive})`;
+function badgePriceColor(stateObj, config, colorType, timeZone, now = new Date()) {
+  const category = badgePriceCategory(stateObj, config, timeZone, now);
+  return category ? BADGE_PRICE_COLORS[category][colorType] : undefined;
 }
 
-function badgeBackground(stateObj, config = {}) {
-  return badgePriceColor(stateObj, config, "background");
+function badgeBackground(stateObj, config = {}, timeZone, now = new Date()) {
+  return badgePriceColor(stateObj, config, "background", timeZone, now);
 }
 
-function badgeForeground(stateObj, config = {}) {
-  return badgePriceColor(stateObj, config, "foreground");
+function badgeForeground(stateObj, config = {}, timeZone, now = new Date()) {
+  return badgePriceColor(stateObj, config, "foreground", timeZone, now);
 }
 
-function applyBadgePriceColors(badge, stateObj, config = {}) {
-  const background = badgeBackground(stateObj, config);
-  const foreground = badgeForeground(stateObj, config);
+function applyBadgePriceColors(badge, stateObj, config = {}, timeZone) {
+  const background = badgeBackground(stateObj, config, timeZone);
+  const foreground = badgeForeground(stateObj, config, timeZone);
   if (background) badge.style.setProperty("--ha-card-background", background);
   if (!foreground) return;
 
@@ -1092,10 +1092,9 @@ class NordpoolBadge extends HTMLElement {
       ? this._hass.states[this._config.entity]
       : undefined;
     const display = badgeConfig(this._config);
-    const label = badgeLabel(
-      this._config,
-      stateObj?.attributes?.tidssone || this._hass.config?.time_zone,
-    );
+    const timeZone = stateObj?.attributes?.tidssone
+      || this._hass.config?.time_zone;
+    const label = badgeLabel(this._config, timeZone);
 
     this.shadowRoot.innerHTML = `
       <ha-badge>
@@ -1111,7 +1110,7 @@ class NordpoolBadge extends HTMLElement {
       "aria-label",
       [label, badgeStateText(stateObj, display.unit)].filter(Boolean).join(" "),
     );
-    applyBadgePriceColors(badge, stateObj, this._config);
+    applyBadgePriceColors(badge, stateObj, this._config, timeZone);
     badge.addEventListener("click", () => {
       showEntityMoreInfo(this, this._config.entity);
     });
