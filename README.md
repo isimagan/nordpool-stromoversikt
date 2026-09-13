@@ -173,6 +173,11 @@ ferdig lastet. Badgevelgeren lastes også på nytt dersom Nordpool Badge blir
 stående med en lastesirkel. Det gjør at badgen normalt kommer tilbake uten at
 dashboardet må lastes inn på nytt manuelt.
 
+I vanlig lagringsmodus registrerer integrasjonen frontendfilen som en Lovelace-
+ressurs, slik at både kort og badge lastes før dashboardet bygges. YAML-modus
+bruker automatisk frontendinnlasting som reserve dersom ressursen ikke allerede
+er definert i `configuration.yaml`.
+
 Badgen kan legges til med YAML:
 
 ```yaml

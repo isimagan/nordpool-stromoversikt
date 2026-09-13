@@ -4,6 +4,14 @@ Alle vesentlige endringer i Nordpool strømoversikt dokumenteres i denne filen.
 
 ## Neste versjon
 
+## 1.4.2.2 – 2026-09-13
+
+### Rettet
+
+- Kortet og badgen registreres som en vedvarende Lovelace-ressurs i
+  lagringsmodus. Det gjør at frontendfilen lastes før dashboardet bygges og
+  hindrer tilfeldige meldinger om manglende custom-element og konfigurasjonsfeil.
+
 ## 1.4.2.1 – 2026-09-13
 
 ### Rettet

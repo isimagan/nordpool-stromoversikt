@@ -7,6 +7,8 @@ from pathlib import Path
 
 from homeassistant.components.frontend import add_extra_js_url
 from homeassistant.components.http import StaticPathConfig
+from homeassistant.components.lovelace import LOVELACE_DATA, MODE_STORAGE
+from homeassistant.components.lovelace.resources import ResourceStorageCollection
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.const import Platform
 from homeassistant.core import HomeAssistant
@@ -22,12 +24,43 @@ CARD_FILE = Path(__file__).parent / "frontend" / "nordpool-price-card.js"
 CARD_URL = f"{CARD_PATH}?v={sha256(CARD_FILE.read_bytes()).hexdigest()[:12]}"
 
 
+async def _async_register_frontend_resource(hass: HomeAssistant) -> None:
+    """Registrer frontendfilen før Lovelace bygger dashboardet."""
+    lovelace_data = hass.data[LOVELACE_DATA]
+    resources = lovelace_data.resources
+    await resources.async_get_info()
+
+    existing = next(
+        (
+            item
+            for item in resources.async_items()
+            if str(item.get("url", "")).split("?", 1)[0] == CARD_PATH
+        ),
+        None,
+    )
+
+    if lovelace_data.resource_mode == MODE_STORAGE and isinstance(
+        resources, ResourceStorageCollection
+    ):
+        resource_data = {"res_type": "module", "url": CARD_URL}
+        if existing is None:
+            await resources.async_create_item(resource_data)
+        elif existing.get("url") != CARD_URL or existing.get("type") != "module":
+            await resources.async_update_item(existing["id"], resource_data)
+        return
+
+    # YAML-ressurser kan ikke endres av integrasjonen. Behold automatisk
+    # innlasting som reserve når brukeren ikke allerede har lagt inn ressursen.
+    if existing is None:
+        add_extra_js_url(hass, CARD_URL)
+
+
 async def async_setup(hass: HomeAssistant, config: ConfigType) -> bool:
     """Registrer priskortet i Home Assistant-frontend."""
     await hass.http.async_register_static_paths(
         [StaticPathConfig(CARD_PATH, str(CARD_FILE), False)]
     )
-    add_extra_js_url(hass, CARD_URL)
+    await _async_register_frontend_resource(hass)
     return True
 
 
