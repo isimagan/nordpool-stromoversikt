@@ -4,6 +4,18 @@ Alle vesentlige endringer i Nordpool strømoversikt dokumenteres i denne filen.
 
 ## Neste versjon
 
+## 1.4.5 – 2026-09-15
+
+### Endret
+
+- **Navn** i badgeveiviseren følger oppbygningen fra Home Assistants tile-kort
+  med valgene **Sammensatt** og **Egendefinert**.
+- **Pris** og **Tid nå** legges til eller fjernes fra det sammensatte navnet via
+  **Legg til**. **Pris** er fortsatt standardvalget.
+- Badgeveiviseren har en utvidbar **Funksjoner**-seksjon med action-valg for
+  tap, dobbelttrykk og hold. Standardene er henholdsvis **Mer informasjon**,
+  **Ingenting** og **Ingenting**.
+
 ## 1.4.4 – 2026-09-13
 
 ### Nytt

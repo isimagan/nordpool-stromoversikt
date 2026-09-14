@@ -151,11 +151,17 @@ opprinnelige Nord Pool-sensoren eller integrasjonens strømstøttesensor;
 strømstøttesensoren er standardvalget. Sensorens tilstand vises uten den
 opprinnelige enheten, etterfulgt av valgt enhet: `kr` eller `NOK/kWh`.
 
-Under **Navn** har veiviseren separate avkrysningsbokser for **Pris** og
-**Nåværende time**. Bare **Pris** er slått på som standard. Tidsrommet viser
-den hele klokketimen nå er innenfor, for eksempel `15:00-16:00`. Når begge
-vises, blir labelen `Pris · 15:00-16:00`. Valgene ligger i en utvidbar seksjon
-som er lukket som standard.
+Under **Navn** kan du velge mellom **Sammensatt** og **Egendefinert**, på samme
+måte som i Home Assistants tile-kort. Et sammensatt navn bygges med **Legg til**,
+der navnedelene **Pris** og **Tid nå** er tilgjengelige. Bare **Pris** er lagt
+til som standard. Tidsrommet viser den hele klokketimen nå er innenfor, for
+eksempel `15:00-16:00`. Når begge vises, blir navnet
+`Pris · 15:00-16:00`. Navnedelene kan fjernes igjen. **Egendefinert** viser et
+tekstfelt for et fritt navn.
+
+Nederst i veiviseren ligger den utvidbare seksjonen **Funksjoner**. Standard
+handling er **Mer informasjon** for tap og **Ingenting** for både dobbelttrykk
+og hold. Handlingene kan endres med Home Assistants vanlige action-velger.
 
 Ikonet følger den valgte entiteten som standard, men kan overstyres i
 ikonvelgeren. Et overstyrt ikon beholdes når entiteten byttes. En valgfri
@@ -194,6 +200,13 @@ show_time_range: false
 show_background: false
 unit: kr
 # icon: mdi:cash-refund
+# name: Min strømpris
+tap_action:
+  action: more-info
+double_tap_action:
+  action: none
+hold_action:
+  action: none
 ```
 
 Hvis Nord Pool ikke er installert, eller ingen Nord Pool-sensor finnes, må du
