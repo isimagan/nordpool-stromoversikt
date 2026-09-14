@@ -1488,11 +1488,11 @@ class NordpoolBadgeEditor extends HTMLElement {
         </div>
         <div class="name-content"></div>
       </section>
+      <ha-icon-picker></ha-icon-picker>
       <label class="switch-option">
         <span>Vis prisbasert bakgrunn</span>
         <ha-switch class="background-switch"></ha-switch>
       </label>
-      <ha-icon-picker></ha-icon-picker>
       <ha-select></ha-select>
     `;
     const picker = this.shadowRoot.querySelector("ha-entity-picker");
