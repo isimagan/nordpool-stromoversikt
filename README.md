@@ -159,6 +159,10 @@ eksempel `15:00-16:00`. Når begge vises, blir navnet
 `Pris · 15:00-16:00`. Navnedelene kan fjernes igjen. **Egendefinert** viser et
 tekstfelt for et fritt navn.
 
+Nederst i veiviseren ligger den utvidbare seksjonen **Funksjoner**. Standard
+handling er **Mer informasjon** for tap og **Ingenting** for både dobbelttrykk
+og hold. Handlingene kan endres med Home Assistants vanlige action-velger.
+
 Ikonet følger den valgte entiteten som standard, men kan overstyres i
 ikonvelgeren. Et overstyrt ikon beholdes når entiteten byttes. En valgfri
 prisbasert bakgrunn bruker Excels standardfarger for positive og negative
@@ -197,6 +201,12 @@ show_background: false
 unit: kr
 # icon: mdi:cash-refund
 # name: Min strømpris
+tap_action:
+  action: more-info
+double_tap_action:
+  action: none
+hold_action:
+  action: none
 ```
 
 Hvis Nord Pool ikke er installert, eller ingen Nord Pool-sensor finnes, må du

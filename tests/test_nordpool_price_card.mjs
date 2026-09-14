@@ -33,6 +33,7 @@ vm.runInContext(
   `${source}\n;globalThis.cardTest = {
     applyBadgePriceColors,
     badgeBackground,
+    badgeActionConfig,
     badgeEntityConfig,
     badgeForeground,
     badgeLabel,
@@ -46,6 +47,7 @@ vm.runInContext(
     NordpoolBadge,
     recoverNordpoolBadgePickers,
     recoverNordpoolBadges,
+    performBadgeAction,
     sensorModel,
     showEntityMoreInfo,
     supportEntityFor,
@@ -56,6 +58,7 @@ vm.runInContext(
 const {
   applyBadgePriceColors,
   badgeBackground,
+  badgeActionConfig,
   badgeEntityConfig,
   badgeForeground,
   badgeLabel,
@@ -69,6 +72,7 @@ const {
   NordpoolBadge,
   recoverNordpoolBadgePickers,
   recoverNordpoolBadges,
+  performBadgeAction,
   sensorModel,
   showEntityMoreInfo,
   supportEntityFor,
@@ -234,6 +238,34 @@ test("keeps a custom icon when the badge entity changes", () => {
   assert.equal(changed.icon, "mdi:lightning-bolt");
   assert.equal(changed.unit, "kr");
   assert.equal(config.entity, "sensor.old");
+});
+
+test("uses the requested default badge actions", () => {
+  assert.equal(badgeActionConfig({}, "tap").action, "more-info");
+  assert.equal(badgeActionConfig({}, "double_tap").action, "none");
+  assert.equal(badgeActionConfig({}, "hold").action, "none");
+});
+
+test("delegates configured badge actions to Home Assistant", () => {
+  const events = [];
+  const target = { dispatchEvent: (event) => events.push(event) };
+  const config = {
+    entity: "sensor.nordpool_stromstotte",
+    hold_action: {
+      action: "navigate",
+      navigation_path: "/energy",
+    },
+  };
+
+  assert.equal(performBadgeAction(target, {}, config, "hold"), true);
+  assert.equal(events.length, 1);
+  assert.equal(events[0].type, "hass-action");
+  assert.equal(events[0].detail.action, "hold");
+  assert.equal(events[0].detail.config, config);
+  assert.equal(events[0].bubbles, true);
+  assert.equal(events[0].composed, true);
+  assert.equal(performBadgeAction(target, {}, config, "double_tap"), false);
+  assert.equal(events.length, 1);
 });
 
 test("opens the price card as more info for the selected support entity", () => {

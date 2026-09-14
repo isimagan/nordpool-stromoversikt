@@ -12,6 +12,16 @@ const BADGE_DEFAULTS = {
   show_background: false,
   unit: BADGE_UNITS[0],
 };
+const BADGE_ACTION_DEFAULTS = {
+  tap: "more-info",
+  double_tap: "none",
+  hold: "none",
+};
+const BADGE_ACTION_KEYS = {
+  tap: "tap_action",
+  double_tap: "double_tap_action",
+  hold: "hold_action",
+};
 const BADGE_PRICE_COLORS = {
   cheapest: {
     background: "#C6EFCE",
@@ -538,6 +548,31 @@ function showEntityMoreInfo(target, hass, entityId) {
 
   target.dispatchEvent(new CustomEvent("hass-more-info", {
     detail: { entityId },
+    bubbles: true,
+    composed: true,
+  }));
+  return true;
+}
+
+function badgeActionConfig(config = {}, gesture) {
+  const key = BADGE_ACTION_KEYS[gesture];
+  if (!key) return { action: "none" };
+  return config[key] ?? { action: BADGE_ACTION_DEFAULTS[gesture] };
+}
+
+function hasBadgeAction(config, gesture) {
+  return badgeActionConfig(config, gesture)?.action !== "none";
+}
+
+function performBadgeAction(target, hass, config, gesture) {
+  const actionConfig = badgeActionConfig(config, gesture);
+  if (!actionConfig || actionConfig.action === "none") return false;
+  if (actionConfig.action === "more-info") {
+    return showEntityMoreInfo(target, hass, config.entity);
+  }
+
+  target.dispatchEvent(new CustomEvent("hass-action", {
+    detail: { config, action: gesture },
     bubbles: true,
     composed: true,
   }));
@@ -1162,6 +1197,13 @@ class NordpoolBadge extends HTMLElement {
     this.attachShadow({ mode: "open" });
     this._hass = undefined;
     this._config = undefined;
+    this._tapTimer = undefined;
+    this._holdTimer = undefined;
+    this._holdTriggered = false;
+  }
+
+  disconnectedCallback() {
+    this._clearActionTimers();
   }
 
   setConfig(config) {
@@ -1203,12 +1245,46 @@ class NordpoolBadge extends HTMLElement {
     );
     applyBadgePriceColors(badge, priceStateObj, this._config, timeZone);
     badge.addEventListener("click", () => {
-      showEntityMoreInfo(this, this._hass, this._config.entity);
+      if (this._holdTriggered) {
+        this._holdTriggered = false;
+        return;
+      }
+      if (hasBadgeAction(this._config, "double_tap")) {
+        clearTimeout(this._tapTimer);
+        this._tapTimer = setTimeout(() => {
+          this._tapTimer = undefined;
+          performBadgeAction(this, this._hass, this._config, "tap");
+        }, 250);
+        return;
+      }
+      performBadgeAction(this, this._hass, this._config, "tap");
     });
+    badge.addEventListener("dblclick", (event) => {
+      if (!hasBadgeAction(this._config, "double_tap")) return;
+      event.preventDefault();
+      clearTimeout(this._tapTimer);
+      this._tapTimer = undefined;
+      performBadgeAction(this, this._hass, this._config, "double_tap");
+    });
+    badge.addEventListener("pointerdown", () => {
+      if (!hasBadgeAction(this._config, "hold")) return;
+      clearTimeout(this._holdTimer);
+      this._holdTimer = setTimeout(() => {
+        this._holdTimer = undefined;
+        this._holdTriggered = true;
+        performBadgeAction(this, this._hass, this._config, "hold");
+      }, 500);
+    });
+    for (const eventName of ["pointerup", "pointercancel", "pointerleave"]) {
+      badge.addEventListener(eventName, () => {
+        clearTimeout(this._holdTimer);
+        this._holdTimer = undefined;
+      });
+    }
     badge.addEventListener("keydown", (event) => {
       if (event.key !== "Enter" && event.key !== " ") return;
       event.preventDefault();
-      showEntityMoreInfo(this, this._hass, this._config.entity);
+      performBadgeAction(this, this._hass, this._config, "tap");
     });
 
     const icon = this.shadowRoot.querySelector("ha-state-icon");
@@ -1218,6 +1294,13 @@ class NordpoolBadge extends HTMLElement {
       stateObj,
       display.unit,
     );
+  }
+
+  _clearActionTimers() {
+    clearTimeout(this._tapTimer);
+    clearTimeout(this._holdTimer);
+    this._tapTimer = undefined;
+    this._holdTimer = undefined;
   }
 }
 
@@ -1312,6 +1395,8 @@ class NordpoolBadgeEditor extends HTMLElement {
 
     const requiredElements = [
       "ha-entity-picker",
+      "ha-expansion-panel",
+      "ha-form",
       "ha-icon",
       "ha-icon-picker",
       "ha-select",
@@ -1476,6 +1561,21 @@ class NordpoolBadgeEditor extends HTMLElement {
           font-size: 14px;
           cursor: pointer;
         }
+        .actions-panel {
+          display: block;
+          margin-top: 18px;
+          --expansion-panel-summary-padding: 4px 14px;
+          --expansion-panel-content-padding: 0 14px 14px;
+        }
+        .actions-panel ha-icon {
+          color: var(--secondary-text-color);
+        }
+        .actions-panel h3 {
+          margin: 0;
+          font-size: 16px;
+          font-weight: 500;
+        }
+        .actions-content { padding-top: 8px; }
       </style>
       <ha-entity-picker></ha-entity-picker>
       <section class="name-editor" aria-labelledby="badge-name-heading">
@@ -1494,6 +1594,11 @@ class NordpoolBadgeEditor extends HTMLElement {
         <ha-switch class="background-switch"></ha-switch>
       </label>
       <ha-select></ha-select>
+      <ha-expansion-panel class="actions-panel" outlined>
+        <ha-icon slot="leading-icon" icon="mdi:format-list-bulleted"></ha-icon>
+        <h3 slot="header">Funksjoner</h3>
+        <div class="actions-content"></div>
+      </ha-expansion-panel>
     `;
     const picker = this.shadowRoot.querySelector("ha-entity-picker");
     picker.hass = this._hass;
@@ -1546,6 +1651,56 @@ class NordpoolBadgeEditor extends HTMLElement {
     unitPicker.addEventListener("selected", (event) => {
       this._changeConfig({ unit: event.detail.value });
     });
+
+    this._renderActionsEditor();
+  }
+
+  _renderActionsEditor() {
+    const panel = this.shadowRoot.querySelector(".actions-panel");
+    panel.expanded = this._actionsExpanded;
+    panel.addEventListener("expanded-changed", (event) => {
+      this._actionsExpanded = event.detail.expanded;
+    });
+
+    const form = document.createElement("ha-form");
+    form.hass = this._hass;
+    form.data = {
+      entity: this._config.entity,
+      tap_action: badgeActionConfig(this._config, "tap"),
+      double_tap_action: badgeActionConfig(this._config, "double_tap"),
+      hold_action: badgeActionConfig(this._config, "hold"),
+    };
+    const actions = ["more-info", "navigate", "url", "perform-action", "assist", "none"];
+    form.schema = [
+      {
+        name: "tap_action",
+        selector: { ui_action: { actions, default_action: "more-info" } },
+      },
+      {
+        name: "double_tap_action",
+        selector: { ui_action: { actions, default_action: "none" } },
+      },
+      {
+        name: "hold_action",
+        selector: { ui_action: { actions, default_action: "none" } },
+      },
+    ];
+    const labels = {
+      tap_action: "Tap",
+      double_tap_action: "Double tap",
+      hold_action: "Hold",
+    };
+    form.computeLabel = (schema) => labels[schema.name] || schema.name;
+    form.addEventListener("value-changed", (event) => {
+      const value = event.detail.value;
+      this._setConfig({
+        ...this._config,
+        tap_action: value.tap_action,
+        double_tap_action: value.double_tap_action,
+        hold_action: value.hold_action,
+      });
+    });
+    this.shadowRoot.querySelector(".actions-content").append(form);
   }
 
   _renderNameEditor(display = badgeConfig(this._config)) {
