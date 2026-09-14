@@ -183,6 +183,20 @@ test("builds the badge label from price and the current whole hour", () => {
   assert.equal(badgeTimeRange("Europe/Oslo", now), "15:00-16:00");
 });
 
+test("uses a custom badge name instead of the composed name", () => {
+  const now = new Date("2026-08-12T13:26:00Z");
+
+  assert.equal(
+    badgeLabel(
+      { name: "Min strømpris", show_price: true, show_time_range: true },
+      "Europe/Oslo",
+      now,
+    ),
+    "Min strømpris",
+  );
+  assert.equal(badgeLabel({ name: "  " }, "Europe/Oslo", now), "");
+});
+
 test("colors the badge only during the cheapest or most expensive hour", () => {
   const config = { show_background: true };
   const cheapest = {

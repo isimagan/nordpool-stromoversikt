@@ -399,6 +399,8 @@ function badgeTimeRange(timeZone, now = new Date()) {
 }
 
 function badgeLabel(config, timeZone, now = new Date()) {
+  if (typeof config?.name === "string") return config.name.trim();
+
   const display = badgeConfig(config);
   const parts = [];
   if (display.show_price) parts.push("Pris");
@@ -1310,11 +1312,11 @@ class NordpoolBadgeEditor extends HTMLElement {
 
     const requiredElements = [
       "ha-entity-picker",
-      "ha-expansion-panel",
       "ha-icon",
       "ha-icon-picker",
       "ha-select",
       "ha-switch",
+      "ha-textfield",
     ];
     const missingElement = requiredElements.find((name) => !customElements.get(name));
     if (missingElement) {
@@ -1340,31 +1342,129 @@ class NordpoolBadgeEditor extends HTMLElement {
         ha-entity-picker,
         ha-icon-picker,
         ha-select { display: block; width: 100%; margin-top: 16px; }
-        ha-expansion-panel {
+        .name-editor {
           margin-top: 18px;
-          --expansion-panel-summary-padding: 4px 14px;
-          --expansion-panel-content-padding: 0 14px 10px;
         }
-        ha-expansion-panel ha-icon {
-          color: var(--secondary-text-color);
-        }
-        .name-options-content {
-          padding-top: 2px;
-        }
-        .option {
+        .name-head {
           display: flex;
           align-items: center;
-          gap: 10px;
-          min-height: 38px;
+          justify-content: space-between;
+          gap: 16px;
+          margin-bottom: 12px;
+        }
+        .name-head h3 {
+          margin: 0;
           color: var(--primary-text-color);
-          font-size: 14px;
+          font-size: 16px;
+          font-weight: 500;
+        }
+        .name-mode {
+          display: grid;
+          grid-template-columns: 1fr 1fr;
+          padding: 2px;
+          border-radius: 24px;
+          background: color-mix(in srgb, var(--primary-text-color) 8%, transparent);
+        }
+        .name-mode button {
+          min-height: 40px;
+          padding: 0 18px;
+          border: 0;
+          border-radius: 22px;
+          background: transparent;
+          color: var(--primary-color);
+          font: inherit;
+          font-weight: 500;
           cursor: pointer;
         }
-        .option input {
-          width: 18px;
-          height: 18px;
-          margin: 0;
-          accent-color: var(--primary-color);
+        .name-mode button.active {
+          background: var(--primary-color);
+          color: var(--text-primary-color, white);
+        }
+        .name-content {
+          min-height: 92px;
+          padding: 14px;
+          border-bottom: 1px solid var(--divider-color);
+          background: color-mix(in srgb, var(--primary-text-color) 5%, transparent);
+        }
+        .name-parts {
+          display: flex;
+          flex-wrap: wrap;
+          gap: 8px;
+          margin-bottom: 12px;
+        }
+        .name-part {
+          display: inline-flex;
+          align-items: center;
+          gap: 7px;
+          min-height: 36px;
+          padding: 0 8px 0 13px;
+          border: 1px solid var(--divider-color);
+          border-radius: 18px;
+          background: var(--card-background-color);
+          color: var(--primary-text-color);
+        }
+        .remove-part {
+          width: 28px;
+          height: 28px;
+          padding: 0;
+          border: 0;
+          border-radius: 50%;
+          background: transparent;
+          color: var(--secondary-text-color);
+          cursor: pointer;
+        }
+        .add-name-part {
+          position: relative;
+          display: inline-block;
+        }
+        .add-name-part summary {
+          display: inline-flex;
+          align-items: center;
+          gap: 9px;
+          min-height: 42px;
+          padding: 0 16px;
+          border: 1px solid var(--divider-color);
+          border-radius: 22px;
+          color: var(--primary-text-color);
+          cursor: pointer;
+          list-style: none;
+        }
+        .add-name-part summary::-webkit-details-marker { display: none; }
+        .add-name-part-menu {
+          position: absolute;
+          z-index: 2;
+          top: calc(100% + 5px);
+          left: 0;
+          min-width: 180px;
+          padding: 6px 0;
+          border: 1px solid var(--divider-color);
+          border-radius: 10px;
+          background: var(--card-background-color);
+          box-shadow: var(--ha-card-box-shadow, 0 5px 18px rgba(0, 0, 0, .3));
+        }
+        .add-name-part-menu button {
+          display: block;
+          width: 100%;
+          min-height: 40px;
+          padding: 0 14px;
+          border: 0;
+          background: transparent;
+          color: var(--primary-text-color);
+          font: inherit;
+          text-align: left;
+          cursor: pointer;
+        }
+        .add-name-part-menu button:hover {
+          background: color-mix(in srgb, var(--primary-text-color) 8%, transparent);
+        }
+        .all-parts-added {
+          color: var(--secondary-text-color);
+          font-size: 13px;
+        }
+        .custom-name { margin-top: 2px; }
+        @media (max-width: 460px) {
+          .name-head { align-items: stretch; flex-direction: column; }
+          .name-mode { width: 100%; }
         }
         .switch-option {
           display: flex;
@@ -1378,19 +1478,16 @@ class NordpoolBadgeEditor extends HTMLElement {
         }
       </style>
       <ha-entity-picker></ha-entity-picker>
-      <ha-expansion-panel class="name-options" outlined>
-        <ha-icon slot="leading-icon" icon="mdi:format-list-bulleted"></ha-icon>
-        <div class="name-options-content">
-          <label class="option">
-            <input type="checkbox" data-option="show_price">
-            Pris
-          </label>
-          <label class="option">
-            <input type="checkbox" data-option="show_time_range">
-            Nåværende time
-          </label>
+      <section class="name-editor" aria-labelledby="badge-name-heading">
+        <div class="name-head">
+          <h3 id="badge-name-heading">Navn</h3>
+          <div class="name-mode" role="group" aria-label="Navnetype">
+            <button type="button" data-name-mode="composed">Sammensatt</button>
+            <button type="button" data-name-mode="custom">Egendefinert</button>
+          </div>
         </div>
-      </ha-expansion-panel>
+        <div class="name-content"></div>
+      </section>
       <label class="switch-option">
         <span>Vis prisbasert bakgrunn</span>
         <ha-switch class="background-switch"></ha-switch>
@@ -1416,20 +1513,7 @@ class NordpoolBadgeEditor extends HTMLElement {
       }));
     });
 
-    const nameOptions = this.shadowRoot.querySelector(".name-options");
-    nameOptions.header = "Navn";
-    nameOptions.expanded = this._nameExpanded;
-    nameOptions.addEventListener("expanded-changed", (event) => {
-      this._nameExpanded = event.detail.expanded;
-    });
-
-    for (const checkbox of this.shadowRoot.querySelectorAll("[data-option]")) {
-      const option = checkbox.dataset.option;
-      checkbox.checked = display[option];
-      checkbox.addEventListener("change", () => {
-        this._changeConfig({ [option]: checkbox.checked });
-      });
-    }
+    this._renderNameEditor(display);
 
     const backgroundSwitch = this.shadowRoot.querySelector(".background-switch");
     backgroundSwitch.checked = display.show_background;
@@ -1462,6 +1546,92 @@ class NordpoolBadgeEditor extends HTMLElement {
     unitPicker.addEventListener("selected", (event) => {
       this._changeConfig({ unit: event.detail.value });
     });
+  }
+
+  _renderNameEditor(display = badgeConfig(this._config)) {
+    const custom = typeof this._config.name === "string";
+    for (const button of this.shadowRoot.querySelectorAll("[data-name-mode]")) {
+      const active = button.dataset.nameMode === (custom ? "custom" : "composed");
+      button.classList.toggle("active", active);
+      button.setAttribute("aria-pressed", String(active));
+      button.addEventListener("click", () => {
+        const config = { ...this._config };
+        if (button.dataset.nameMode === "custom") config.name = "";
+        else delete config.name;
+        this._setConfig(config);
+        this._render();
+      });
+    }
+
+    const content = this.shadowRoot.querySelector(".name-content");
+    if (custom) {
+      const field = document.createElement("ha-textfield");
+      field.className = "custom-name";
+      field.label = "Egendefinert navn";
+      field.value = this._config.name;
+      field.addEventListener("input", (event) => {
+        this._changeConfig({ name: event.currentTarget.value });
+      });
+      content.append(field);
+      return;
+    }
+
+    const options = [
+      ["show_price", "Pris"],
+      ["show_time_range", "Tid nå"],
+    ];
+    const selected = options.filter(([key]) => display[key]);
+    const available = options.filter(([key]) => !display[key]);
+
+    if (selected.length) {
+      const parts = document.createElement("div");
+      parts.className = "name-parts";
+      for (const [key, label] of selected) {
+        const part = document.createElement("span");
+        part.className = "name-part";
+        part.append(document.createTextNode(label));
+        const remove = document.createElement("button");
+        remove.className = "remove-part";
+        remove.type = "button";
+        remove.setAttribute("aria-label", `Fjern ${label}`);
+        remove.textContent = "×";
+        remove.addEventListener("click", () => {
+          this._changeConfig({ [key]: false });
+          this._render();
+        });
+        part.append(remove);
+        parts.append(part);
+      }
+      content.append(parts);
+    }
+
+    if (!available.length) {
+      const message = document.createElement("span");
+      message.className = "all-parts-added";
+      message.textContent = "Alle navnedeler er lagt til";
+      content.append(message);
+      return;
+    }
+
+    const add = document.createElement("details");
+    add.className = "add-name-part";
+    const summary = document.createElement("summary");
+    summary.innerHTML = '<ha-icon icon="mdi:plus"></ha-icon><span>Legg til</span>';
+    add.append(summary);
+    const menu = document.createElement("div");
+    menu.className = "add-name-part-menu";
+    for (const [key, label] of available) {
+      const option = document.createElement("button");
+      option.type = "button";
+      option.textContent = label;
+      option.addEventListener("click", () => {
+        this._changeConfig({ [key]: true });
+        this._render();
+      });
+      menu.append(option);
+    }
+    add.append(menu);
+    content.append(add);
   }
 
   _changeConfig(changes) {
