@@ -41,6 +41,7 @@ vm.runInContext(
     badgeTimeRange,
     badgePriceState,
     cardClass,
+    createSensorPicker,
     isBadgeEntity,
     isTomorrowEntity,
     moreInfoCardConfig,
@@ -49,6 +50,7 @@ vm.runInContext(
     recoverNordpoolBadges,
     performBadgeAction,
     sensorModel,
+    sensorPickerValue,
     showEntityMoreInfo,
     supportEntityFor,
   };`,
@@ -66,6 +68,7 @@ const {
   badgeTimeRange,
   badgePriceState,
   cardClass,
+  createSensorPicker,
   isBadgeEntity,
   isTomorrowEntity,
   moreInfoCardConfig,
@@ -74,9 +77,50 @@ const {
   recoverNordpoolBadges,
   performBadgeAction,
   sensorModel,
+  sensorPickerValue,
   showEntityMoreInfo,
   supportEntityFor,
 } = context.cardTest;
+
+test("shows a usable sensor select when Home Assistant has not loaded its picker", () => {
+  const originalCreateElement = context.document.createElement;
+  context.document.createElement = (tagName) => ({
+    tagName,
+    children: [],
+    append(...children) { this.children.push(...children); },
+  });
+  try {
+    const result = createSensorPicker(
+      { states: { "sensor.price": { attributes: { friendly_name: "Strømpris" } } } },
+      "sensor.price", "Prissensor", "Velg sensor", ["sensor.price"], true,
+    );
+    assert.equal(result.eventName, "change");
+    assert.equal(result.control.tagName, "select");
+    assert.equal(result.control.value, "sensor.price");
+    assert.equal(result.control.children[1].value, "sensor.price");
+    assert.equal(sensorPickerValue({ target: result.control }), "sensor.price");
+  } finally {
+    context.document.createElement = originalCreateElement;
+  }
+});
+
+test("keeps Home Assistant's sensor picker when it is available", () => {
+  const originalCreateElement = context.document.createElement;
+  customElements.set("ha-entity-picker", class {});
+  context.document.createElement = (tagName) => ({ tagName });
+  try {
+    const hass = { states: {} };
+    const result = createSensorPicker(hass, "sensor.price", "Prissensor", "", ["sensor.price"]);
+    assert.equal(result.eventName, "value-changed");
+    assert.equal(result.control.tagName, "ha-entity-picker");
+    assert.equal(result.control.hass, hass);
+    assert.equal(result.control.value, "sensor.price");
+    assert.equal(sensorPickerValue({ detail: { value: "sensor.other" } }), "sensor.other");
+  } finally {
+    customElements.delete("ha-entity-picker");
+    context.document.createElement = originalCreateElement;
+  }
+});
 const unavailableTomorrow = {
   state: "unavailable",
   attributes: { icon: "mdi:calendar-arrow-right" },

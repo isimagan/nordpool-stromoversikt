@@ -989,6 +989,46 @@ class NordpoolPriceCard extends HTMLElement {
   }
 }
 
+function createSensorPicker(hass, value, labelText, helperText, entities, required = false) {
+  if (customElements.get("ha-entity-picker")) {
+    const picker = document.createElement("ha-entity-picker");
+    picker.hass = hass;
+    picker.value = value || "";
+    picker.label = labelText;
+    picker.helper = helperText;
+    picker.required = required;
+    picker.includeDomains = ["sensor"];
+    picker.includeEntities = entities;
+    return { element: picker, control: picker, eventName: "value-changed" };
+  }
+
+  // HA laster enkelte redigeringskomponenter bare når andre visninger åpnes.
+  // Et vanlig select-felt må derfor fungere selv om ha-entity-picker uteblir.
+  const label = document.createElement("label");
+  label.className = "native-field";
+  const title = document.createElement("span");
+  title.textContent = labelText;
+  const select = document.createElement("select");
+  select.required = required;
+  for (const entityId of ["", ...entities]) {
+    const option = document.createElement("option");
+    option.value = entityId;
+    option.textContent = entityId
+      ? `${hass.states[entityId]?.attributes?.friendly_name || entityId} (${entityId})`
+      : "Velg sensor";
+    select.append(option);
+  }
+  select.value = value || "";
+  const helper = document.createElement("small");
+  helper.textContent = helperText;
+  label.append(title, select, helper);
+  return { element: label, control: select, eventName: "change" };
+}
+
+function sensorPickerValue(event) {
+  return event.detail?.value ?? event.target.value;
+}
+
 class NordpoolPriceCardEditor extends HTMLElement {
   constructor() {
     super();
@@ -1011,17 +1051,14 @@ class NordpoolPriceCardEditor extends HTMLElement {
   _render() {
     if (!this._hass) return;
 
-    if (!customElements.get("ha-entity-picker")) {
-      this.shadowRoot.innerHTML = `<p class="loading">Laster sensorvelger …</p>`;
-      customElements.whenDefined("ha-entity-picker").then(() => this._render());
-      return;
-    }
-
     this.shadowRoot.innerHTML = `
       <style>
         :host { display: block; padding: 8px 0; }
         .sensor-field + .sensor-field { margin-top: 16px; }
         ha-entity-picker { display: block; width: 100%; }
+        .native-field { display: grid; gap: 6px; color: var(--primary-text-color); font-size: 14px; }
+        .native-field select { width: 100%; min-height: 40px; color: inherit; background: var(--card-background-color); border: 1px solid var(--divider-color); border-radius: 5px; padding: 0 8px; }
+        .native-field small { color: var(--secondary-text-color); }
         .loading,
         .empty {
           margin: 8px 0 0;
@@ -1086,22 +1123,17 @@ class NordpoolPriceCardEditor extends HTMLElement {
       tomorrowEntities.push(this._config.tomorrow_entity);
     }
 
-    const todayPicker = document.createElement("ha-entity-picker");
-    todayPicker.value = this._config.entity || "";
-    todayPicker.label = "Strømstøttesensor";
-    todayPicker.helper = "Påkrevd · brukes til prisene for i dag";
-    todayPicker.required = true;
-    todayPicker.includeDomains = ["sensor"];
-    todayPicker.includeEntities = todayEntities;
-    this.shadowRoot.querySelector("#today-field").append(todayPicker);
+    const todayPicker = createSensorPicker(
+      this._hass, this._config.entity, "Strømstøttesensor",
+      "Påkrevd · brukes til prisene for i dag", todayEntities, true,
+    );
+    this.shadowRoot.querySelector("#today-field").append(todayPicker.element);
 
-    const tomorrowPicker = document.createElement("ha-entity-picker");
-    tomorrowPicker.value = this._config.tomorrow_entity || "";
-    tomorrowPicker.label = "I morgen-sensor";
-    tomorrowPicker.helper = "Valgfri · viser valget mellom I dag og I morgen";
-    tomorrowPicker.includeDomains = ["sensor"];
-    tomorrowPicker.includeEntities = tomorrowEntities;
-    this.shadowRoot.querySelector("#tomorrow-field").append(tomorrowPicker);
+    const tomorrowPicker = createSensorPicker(
+      this._hass, this._config.tomorrow_entity, "I morgen-sensor",
+      "Valgfri · viser valget mellom I dag og I morgen", tomorrowEntities,
+    );
+    this.shadowRoot.querySelector("#tomorrow-field").append(tomorrowPicker.element);
 
     if (!todayEntities.length) {
       const message = document.createElement("p");
@@ -1110,8 +1142,8 @@ class NordpoolPriceCardEditor extends HTMLElement {
       this.shadowRoot.querySelector("#today-field").append(message);
     }
 
-    todayPicker.addEventListener("value-changed", (event) => {
-      const entity = event.detail.value;
+    todayPicker.control.addEventListener(todayPicker.eventName, (event) => {
+      const entity = sensorPickerValue(event);
       const config = { ...this._config };
       if (entity) config.entity = entity;
       else delete config.entity;
@@ -1123,8 +1155,8 @@ class NordpoolPriceCardEditor extends HTMLElement {
       }));
     });
 
-    tomorrowPicker.addEventListener("value-changed", (event) => {
-      const tomorrowEntity = event.detail.value;
+    tomorrowPicker.control.addEventListener(tomorrowPicker.eventName, (event) => {
+      const tomorrowEntity = sensorPickerValue(event);
       const config = { ...this._config };
       if (tomorrowEntity) config.tomorrow_entity = tomorrowEntity;
       else delete config.tomorrow_entity;
@@ -1393,23 +1425,6 @@ class NordpoolBadgeEditor extends HTMLElement {
   _render() {
     if (!this._hass) return;
 
-    const requiredElements = [
-      "ha-entity-picker",
-      "ha-expansion-panel",
-      "ha-form",
-      "ha-icon",
-      "ha-icon-picker",
-      "ha-select",
-      "ha-switch",
-      "ha-textfield",
-    ];
-    const missingElement = requiredElements.find((name) => !customElements.get(name));
-    if (missingElement) {
-      this.shadowRoot.innerHTML = `<p>Laster sensorvelger …</p>`;
-      customElements.whenDefined(missingElement).then(() => this._render());
-      return;
-    }
-
     const entities = Object.entries(this._hass.states)
       .filter(([entityId, stateObj]) => (
         isBadgeEntity(this._hass, entityId, stateObj)
@@ -1427,6 +1442,13 @@ class NordpoolBadgeEditor extends HTMLElement {
         ha-entity-picker,
         ha-icon-picker,
         ha-select { display: block; width: 100%; margin-top: 16px; }
+        .sensor-field,
+        .icon-field,
+        .unit-field { margin-top: 16px; }
+        .native-field { display: grid; gap: 6px; color: var(--primary-text-color); font-size: 14px; }
+        .native-field select,
+        .native-field input { width: 100%; min-height: 40px; box-sizing: border-box; color: inherit; background: var(--card-background-color); border: 1px solid var(--divider-color); border-radius: 5px; padding: 0 8px; }
+        .native-field small { color: var(--secondary-text-color); }
         .name-editor {
           margin-top: 18px;
         }
@@ -1546,7 +1568,7 @@ class NordpoolBadgeEditor extends HTMLElement {
           color: var(--secondary-text-color);
           font-size: 13px;
         }
-        .custom-name { margin-top: 2px; }
+        .custom-name { display: block; width: 100%; box-sizing: border-box; margin-top: 2px; }
         @media (max-width: 460px) {
           .name-head { align-items: stretch; flex-direction: column; }
           .name-mode { width: 100%; }
@@ -1576,8 +1598,11 @@ class NordpoolBadgeEditor extends HTMLElement {
           font-weight: 500;
         }
         .actions-content { padding-top: 8px; }
+        details.actions-panel { border: 1px solid var(--divider-color); border-radius: 8px; padding: 12px 14px; }
+        details.actions-panel summary { cursor: pointer; color: var(--primary-text-color); }
+        .native-actions { display: grid; gap: 14px; padding-top: 14px; }
       </style>
-      <ha-entity-picker></ha-entity-picker>
+      <div class="sensor-field"></div>
       <section class="name-editor" aria-labelledby="badge-name-heading">
         <div class="name-head">
           <h3 id="badge-name-heading">Navn</h3>
@@ -1588,28 +1613,25 @@ class NordpoolBadgeEditor extends HTMLElement {
         </div>
         <div class="name-content"></div>
       </section>
-      <ha-icon-picker></ha-icon-picker>
+      <div class="icon-field"></div>
       <label class="switch-option">
         <span>Vis prisbasert bakgrunn</span>
-        <ha-switch class="background-switch"></ha-switch>
+        ${customElements.get("ha-switch")
+          ? '<ha-switch class="background-switch"></ha-switch>'
+          : '<input class="background-switch" type="checkbox">'}
       </label>
-      <ha-select></ha-select>
-      <ha-expansion-panel class="actions-panel" outlined>
-        <ha-icon slot="leading-icon" icon="mdi:format-list-bulleted"></ha-icon>
-        <h3 slot="header">Funksjoner</h3>
-        <div class="actions-content"></div>
-      </ha-expansion-panel>
+      <div class="unit-field"></div>
+      ${customElements.get("ha-expansion-panel")
+          ? '<ha-expansion-panel class="actions-panel" outlined><ha-icon slot="leading-icon" icon="mdi:format-list-bulleted"></ha-icon><h3 slot="header">Funksjoner</h3><div class="actions-content"></div></ha-expansion-panel>'
+          : '<details class="actions-panel"><summary>Funksjoner</summary><div class="actions-content"></div></details>'}
     `;
-    const picker = this.shadowRoot.querySelector("ha-entity-picker");
-    picker.hass = this._hass;
-    picker.value = this._config.entity || "";
-    picker.label = "Prissensor";
-    picker.helper = "Nord Pool-sensor eller integrasjonens strømstøttesensor";
-    picker.required = true;
-    picker.includeDomains = ["sensor"];
-    picker.includeEntities = entities;
-    picker.addEventListener("value-changed", (event) => {
-      const config = badgeEntityConfig(this._config, event.detail.value);
+    const picker = createSensorPicker(
+      this._hass, this._config.entity, "Prissensor",
+      "Nord Pool-sensor eller integrasjonens strømstøttesensor", entities, true,
+    );
+    this.shadowRoot.querySelector(".sensor-field").append(picker.element);
+    picker.control.addEventListener(picker.eventName, (event) => {
+      const config = badgeEntityConfig(this._config, sensorPickerValue(event));
       this._config = config;
       this.dispatchEvent(new CustomEvent("config-changed", {
         detail: { config },
@@ -1629,27 +1651,57 @@ class NordpoolBadgeEditor extends HTMLElement {
     const selectedState = this._config.entity
       ? this._hass.states[this._config.entity]
       : undefined;
-    const iconPicker = this.shadowRoot.querySelector("ha-icon-picker");
+    const nativeIcon = !customElements.get("ha-icon-picker");
+    const iconPicker = document.createElement(nativeIcon ? "input" : "ha-icon-picker");
+    if (nativeIcon) {
+      iconPicker.type = "text";
+      iconPicker.placeholder = selectedState?.attributes?.icon || "mdi:ab-testing";
+      const label = document.createElement("label");
+      label.className = "native-field";
+      const title = document.createElement("span");
+      title.textContent = "Ikon";
+      const helper = document.createElement("small");
+      helper.textContent = "Tomt valg bruker ikonet til den valgte entiteten";
+      label.append(title, iconPicker, helper);
+      this.shadowRoot.querySelector(".icon-field").append(label);
+    } else {
+      iconPicker.placeholder = selectedState?.attributes?.icon;
+      iconPicker.label = "Ikon";
+      iconPicker.helper = "Tomt valg bruker ikonet til den valgte entiteten";
+      this.shadowRoot.querySelector(".icon-field").append(iconPicker);
+    }
     iconPicker.value = this._config.icon || "";
-    iconPicker.placeholder = selectedState?.attributes?.icon;
-    iconPicker.label = "Ikon";
-    iconPicker.helper = "Tomt valg bruker ikonet til den valgte entiteten";
-    iconPicker.addEventListener("value-changed", (event) => {
+    iconPicker.addEventListener(nativeIcon ? "change" : "value-changed", (event) => {
       const config = { ...this._config };
-      if (event.detail.value) config.icon = event.detail.value;
+      const value = nativeIcon ? event.target.value : event.detail.value;
+      if (value) config.icon = value;
       else delete config.icon;
       this._setConfig(config);
     });
 
-    const unitPicker = this.shadowRoot.querySelector("ha-select");
-    unitPicker.label = "Enhet";
+    const nativeUnit = !customElements.get("ha-select");
+    const unitPicker = document.createElement(nativeUnit ? "select" : "ha-select");
+    if (nativeUnit) {
+      const label = document.createElement("label");
+      label.className = "native-field";
+      const title = document.createElement("span");
+      title.textContent = "Enhet";
+      label.append(title, unitPicker);
+      for (const unit of BADGE_UNITS) {
+        const option = document.createElement("option");
+        option.value = unit;
+        option.textContent = unit;
+        unitPicker.append(option);
+      }
+      this.shadowRoot.querySelector(".unit-field").append(label);
+    } else {
+      unitPicker.label = "Enhet";
+      unitPicker.options = BADGE_UNITS.map((unit) => ({ value: unit, label: unit }));
+      this.shadowRoot.querySelector(".unit-field").append(unitPicker);
+    }
     unitPicker.value = display.unit;
-    unitPicker.options = BADGE_UNITS.map((unit) => ({
-      value: unit,
-      label: unit,
-    }));
-    unitPicker.addEventListener("selected", (event) => {
-      this._changeConfig({ unit: event.detail.value });
+    unitPicker.addEventListener(nativeUnit ? "change" : "selected", (event) => {
+      this._changeConfig({ unit: nativeUnit ? event.target.value : event.detail.value });
     });
 
     this._renderActionsEditor();
@@ -1657,10 +1709,61 @@ class NordpoolBadgeEditor extends HTMLElement {
 
   _renderActionsEditor() {
     const panel = this.shadowRoot.querySelector(".actions-panel");
-    panel.expanded = this._actionsExpanded;
-    panel.addEventListener("expanded-changed", (event) => {
-      this._actionsExpanded = event.detail.expanded;
-    });
+    if (panel.tagName === "DETAILS") {
+      panel.open = Boolean(this._actionsExpanded);
+      panel.addEventListener("toggle", () => { this._actionsExpanded = panel.open; });
+    } else {
+      panel.expanded = this._actionsExpanded;
+      panel.addEventListener("expanded-changed", (event) => {
+        this._actionsExpanded = event.detail.expanded;
+      });
+    }
+
+    const container = this.shadowRoot.querySelector(".actions-content");
+    const labels = {
+      tap_action: "Tap",
+      double_tap_action: "Double tap",
+      hold_action: "Hold",
+    };
+    if (!customElements.get("ha-form")) {
+      const fallback = document.createElement("div");
+      fallback.className = "native-actions";
+      for (const [key, labelText] of Object.entries(labels)) {
+        const label = document.createElement("label");
+        label.className = "native-field";
+        const title = document.createElement("span");
+        title.textContent = labelText;
+        const select = document.createElement("select");
+        const original = this._config[key];
+        const current = original?.action || BADGE_ACTION_DEFAULTS[
+          Object.keys(BADGE_ACTION_KEYS).find((gesture) => BADGE_ACTION_KEYS[gesture] === key)
+        ];
+        for (const [value, text] of [["more-info", "Mer info"], ["none", "Ingenting"]]) {
+          const option = document.createElement("option");
+          option.value = value;
+          option.textContent = text;
+          select.append(option);
+        }
+        if (!["more-info", "none"].includes(current)) {
+          const option = document.createElement("option");
+          option.value = current;
+          option.textContent = `${current} (eksisterende valg)`;
+          select.append(option);
+        }
+        select.value = current;
+        select.addEventListener("change", () => {
+          this._changeConfig({
+            [key]: select.value === current && original
+              ? original
+              : { action: select.value },
+          });
+        });
+        label.append(title, select);
+        fallback.append(label);
+      }
+      container.append(fallback);
+      return;
+    }
 
     const form = document.createElement("ha-form");
     form.hass = this._hass;
@@ -1685,11 +1788,6 @@ class NordpoolBadgeEditor extends HTMLElement {
         selector: { ui_action: { actions, default_action: "none" } },
       },
     ];
-    const labels = {
-      tap_action: "Tap",
-      double_tap_action: "Double tap",
-      hold_action: "Hold",
-    };
     form.computeLabel = (schema) => labels[schema.name] || schema.name;
     form.addEventListener("value-changed", (event) => {
       const value = event.detail.value;
@@ -1700,7 +1798,7 @@ class NordpoolBadgeEditor extends HTMLElement {
         hold_action: value.hold_action,
       });
     });
-    this.shadowRoot.querySelector(".actions-content").append(form);
+    container.append(form);
   }
 
   _renderNameEditor(display = badgeConfig(this._config)) {
@@ -1720,9 +1818,20 @@ class NordpoolBadgeEditor extends HTMLElement {
 
     const content = this.shadowRoot.querySelector(".name-content");
     if (custom) {
-      const field = document.createElement("ha-textfield");
+      const inputTag = customElements.get("ha-input")
+        ? "ha-input"
+        : customElements.get("ha-textfield")
+          ? "ha-textfield"
+          : "input";
+      const native = inputTag === "input";
+      const field = document.createElement(inputTag);
       field.className = "custom-name";
-      field.label = "Egendefinert navn";
+      if (native) {
+        field.type = "text";
+        field.setAttribute("aria-label", "Egendefinert navn");
+      } else {
+        field.label = "Egendefinert navn";
+      }
       field.value = this._config.name;
       field.addEventListener("input", (event) => {
         this._changeConfig({ name: event.currentTarget.value });

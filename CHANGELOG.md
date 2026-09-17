@@ -4,6 +4,16 @@ Alle vesentlige endringer i Nordpool strømoversikt dokumenteres i denne filen.
 
 ## Neste versjon
 
+## 1.4.5.1 – 2026-09-17
+
+### Rettet
+
+- Badgeveiviseren blir ikke lenger stående på «Laster sensorvelger» når
+  Home Assistant ikke har lastet eller har fjernet et internt redigeringsfelt.
+  Navnefeltet bruker `ha-input` i nyere Home Assistant, og veiviseren har
+  fungerende reservekontroller for øvrige felter. Det samme gjelder
+  sensorvelgerne i priskortets veiviser.
+
 ## 1.4.5 – 2026-09-15
 
 ### Endret
