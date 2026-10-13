@@ -100,6 +100,11 @@ class NordpoolKildesensor(SensorEntity):
         )
         self._oppdater_fra_kildesensor()
 
+    @callback
+    def async_entity_id_changed(self, old_entity_id: str) -> None:
+        """Velg navneendring på stedet for denne entiteten."""
+        super().async_entity_id_changed(old_entity_id)
+
     async def async_update(self) -> None:
         """Oppdater fra valgt Nord Pool-sensor."""
         self._oppdater_fra_kildesensor()
