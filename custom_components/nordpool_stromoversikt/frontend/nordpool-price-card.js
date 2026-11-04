@@ -989,6 +989,11 @@ class NordpoolPriceCard extends HTMLElement {
   }
 }
 
+function entityDisplayName(hass, stateObj, fallback) {
+  if (!stateObj) return fallback;
+  return hass.formatEntityName?.(stateObj) || stateObj.attributes?.friendly_name || fallback;
+}
+
 function createSensorPicker(hass, value, labelText, helperText, entities, required = false) {
   if (customElements.get("ha-entity-picker")) {
     const picker = document.createElement("ha-entity-picker");
@@ -1014,7 +1019,7 @@ function createSensorPicker(hass, value, labelText, helperText, entities, requir
     const option = document.createElement("option");
     option.value = entityId;
     option.textContent = entityId
-      ? `${hass.states[entityId]?.attributes?.friendly_name || entityId} (${entityId})`
+      ? `${entityDisplayName(hass, hass.states[entityId], entityId)} (${entityId})`
       : "Velg sensor";
     select.append(option);
   }
@@ -1393,7 +1398,7 @@ class NordpoolPriceMoreInfo extends HTMLElement {
     dialog.open = true;
     dialog.setAttribute(
       "header-title",
-      stateObj?.attributes?.friendly_name || "Strømpris",
+      entityDisplayName(this._hass, stateObj, "Strømpris"),
     );
     dialog.addEventListener("closed", () => this.closeDialog());
 
