@@ -2,7 +2,14 @@
 
 Alle vesentlige endringer i Nordpool strømoversikt dokumenteres i denne filen.
 
-## Neste versjon
+## 1.4.6 – 2026-11-04
+
+### Endret
+
+- Sensorvelgerens reservekontroll og mer informasjon-dialogen bruker nå Home
+  Assistants enhetsnavnformatterer. Navn følger dermed samme device- og
+  områdekontekst som innebygde kort i Home Assistant 2026.11.
+- Eldre Home Assistant-versjoner bruker fortsatt `friendly_name` som reserve.
 
 ## 1.4.5.1 – 2026-09-17
 

@@ -42,6 +42,7 @@ vm.runInContext(
     badgePriceState,
     cardClass,
     createSensorPicker,
+    entityDisplayName,
     isBadgeEntity,
     isTomorrowEntity,
     moreInfoCardConfig,
@@ -69,6 +70,7 @@ const {
   badgePriceState,
   cardClass,
   createSensorPicker,
+  entityDisplayName,
   isBadgeEntity,
   isTomorrowEntity,
   moreInfoCardConfig,
@@ -91,17 +93,26 @@ test("shows a usable sensor select when Home Assistant has not loaded its picker
   });
   try {
     const result = createSensorPicker(
-      { states: { "sensor.price": { attributes: { friendly_name: "Strømpris" } } } },
+      {
+        states: { "sensor.price": { attributes: { friendly_name: "Strømpris" } } },
+        formatEntityName: () => "Kjøkken · Strømpris",
+      },
       "sensor.price", "Prissensor", "Velg sensor", ["sensor.price"], true,
     );
     assert.equal(result.eventName, "change");
     assert.equal(result.control.tagName, "select");
     assert.equal(result.control.value, "sensor.price");
     assert.equal(result.control.children[1].value, "sensor.price");
+    assert.equal(result.control.children[1].textContent, "Kjøkken · Strømpris (sensor.price)");
     assert.equal(sensorPickerValue({ target: result.control }), "sensor.price");
   } finally {
     context.document.createElement = originalCreateElement;
   }
+});
+
+test("entity names fall back to friendly_name on older Home Assistant versions", () => {
+  const stateObj = { attributes: { friendly_name: "Strømpris" } };
+  assert.equal(entityDisplayName({}, stateObj, "sensor.price"), "Strømpris");
 });
 
 test("keeps Home Assistant's sensor picker when it is available", () => {
